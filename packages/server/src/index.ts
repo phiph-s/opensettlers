@@ -6,6 +6,11 @@ import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/s
 import { PORT, CORS_ORIGIN } from './config.js';
 import { LobbyManager } from './lobby/LobbyManager.js';
 import { registerHandlers } from './socket/registerHandlers.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isProd = process.env['NODE_ENV'] === 'production';
 
 const app = express();
 app.use(cors({ origin: CORS_ORIGIN }));
@@ -14,6 +19,14 @@ app.use(express.json());
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+if (isProd) {
+  const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 const httpServer = createServer(app);
 const io = new IOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {

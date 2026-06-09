@@ -9,6 +9,7 @@
     "predev": "fuser -k 4000/tcp 2>/dev/null; true",
     "dev": "concurrently --kill-others-on-fail -n shared,server,client -c cyan,green,blue \"npm run dev -w packages/shared\" \"npm run dev -w packages/server\" \"npm run dev -w packages/client\"",
     "build": "npm run build -w packages/shared && npm run build -w packages/server && npm run build -w packages/client",
+    "start": "node packages/server/dist/index.js",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },
