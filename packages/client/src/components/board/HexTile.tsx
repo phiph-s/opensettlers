@@ -18,6 +18,15 @@ const TERRAIN_COLORS: Record<TerrainType, string> = {
   sea: '#1a5a8a',
 };
 
+const TERRAIN_PATTERN: Partial<Record<TerrainType, string>> = {
+  forest: 'url(#pat-forest)',
+  hills: 'url(#pat-hills)',
+  fields: 'url(#pat-fields)',
+  pasture: 'url(#pat-pasture)',
+  mountains: 'url(#pat-mountains)',
+  desert: 'url(#pat-desert)',
+};
+
 const TERRAIN_IMG: Partial<Record<TerrainType, string>> = {
   forest: woodImg,
   hills: brickImg,
@@ -36,17 +45,18 @@ interface Props {
 export function HexTile({ hex, center, size }: Props) {
   const points = hexPolygonPoints(center, size * 0.97);
   const color = TERRAIN_COLORS[hex.terrain];
+  const pattern = TERRAIN_PATTERN[hex.terrain];
   const img = TERRAIN_IMG[hex.terrain];
   const imgSize = size * 0.48;
 
   return (
     <g>
-      <polygon
-        points={points}
-        fill={color}
-        stroke="#111"
-        strokeWidth={1.5}
-      />
+      {/* Base color fill */}
+      <polygon points={points} fill={color} stroke="#111" strokeWidth={1.5} />
+      {/* Terrain texture pattern overlay */}
+      {pattern && (
+        <polygon points={points} fill={pattern} stroke="none" />
+      )}
       {/* Terrain resource icon */}
       {img && (
         <image

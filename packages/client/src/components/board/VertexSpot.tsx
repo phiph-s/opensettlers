@@ -126,10 +126,24 @@ export function VertexSpot({ vertex, position, isValid, size, myPlayerId, player
   if (building) {
     const color = playerColorMap[building.owner] ?? '#aaa';
     return (
-      <g key={`${building.type}-${building.owner}`} className="piece-drop-in">
+      <g
+        key={`${building.type}-${building.owner}`}
+        className="piece-drop-in"
+        onClick={isValid ? onClick : undefined}
+        style={isValid ? { cursor: 'pointer' } : undefined}
+      >
         {building.type === 'city'
           ? <City cx={x} cy={y} color={color} s={s} />
           : <Settlement cx={x} cy={y} color={color} s={s} />}
+        {/* Highlight ring when this building is a valid upgrade target */}
+        {isValid && (
+          <circle
+            cx={x} cy={y} r={s * 1.3}
+            fill="rgba(255,240,100,0.18)"
+            stroke="rgba(255,220,50,0.75)"
+            strokeWidth={1.5}
+          />
+        )}
       </g>
     );
   }

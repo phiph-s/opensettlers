@@ -120,6 +120,12 @@ export interface ServerToClientEvents {
     offerId: string;
     outcome: 'accepted' | 'rejected' | 'cancelled' | 'expired';
   }) => void;
+  'game:trade_executed': (payload: {
+    fromPlayerId: string;
+    toPlayerId: string;
+    offered: Partial<Record<Resource, number>>;
+    received: Partial<Record<Resource, number>>;
+  }) => void;
   'game:longest_road_changed': (payload: {
     playerId: string | null;
     length: number;

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { GameState } from '@opensettlers/shared';
+import type { GameState, Resource } from '@opensettlers/shared';
 import { socket } from '../../socket.js';
 import { RESOURCE_IMAGES } from '../../assets/resources.js';
-
-type Resource = 'wood' | 'brick' | 'wheat' | 'sheep' | 'ore';
 
 interface FlyingIcon {
   id: number;
@@ -11,16 +9,16 @@ interface FlyingIcon {
   imgSrc?: string;
   startX: number;
   startY: number;
-  dx: number;
-  dy: number;
-  departed: boolean;
-  delay: number;
+  midX: number;
+  midY: number;
+  endX: number;
+  endY: number;
+  phase: 0 | 1 | 2;
 }
 
 let nextId = 0;
 
 function boardCenter(): { x: number; y: number } {
-  // The board occupies roughly the left 75% of the viewport
   return {
     x: window.innerWidth * 0.36 + (Math.random() - 0.5) * 90,
     y: window.innerHeight * 0.44 + (Math.random() - 0.5) * 70,
@@ -34,6 +32,24 @@ function panelCenter(playerId: string): { x: number; y: number } | null {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+function arcMid(
+  sx: number, sy: number,
+  ex: number, ey: number,
+  leftPx: number,
+  upPx: number
+): { mx: number; my: number } {
+  const cx = (sx + ex) / 2;
+  const cy = (sy + ey) / 2;
+  const dx = ex - sx, dy = ey - sy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return { mx: cx, my: cy - upPx };
+  const ux = dx / len, uy = dy / len;
+  return {
+    mx: cx - uy * leftPx,
+    my: cy + ux * leftPx - upPx,
+  };
+}
+
 interface Props {
   gameState: GameState | null;
 }
@@ -43,11 +59,62 @@ export function ResourceFlowLayer({ gameState }: Props) {
   const prevDevCounts = useRef<Record<string, number>>({});
   const initialized = useRef(false);
 
-  // Resource gains via socket event
+  function spawnBatch(
+    items: Array<{
+      kind: 'resource' | 'devcard';
+      imgSrc?: string;
+      sx: number; sy: number;
+      ex: number; ey: number;
+      leftArc: number; upArc: number;
+    }>,
+    baseDelay = 0
+  ) {
+    const newIcons: FlyingIcon[] = items.map((item, i) => {
+      const { mx, my } = arcMid(item.sx, item.sy, item.ex, item.ey, item.leftArc, item.upArc);
+      return {
+        id: nextId++,
+        kind: item.kind,
+        imgSrc: item.imgSrc,
+        startX: item.sx,
+        startY: item.sy,
+        midX: mx,
+        midY: my,
+        endX: item.ex,
+        endY: item.ey,
+        phase: 0,
+      };
+    });
+
+    setIcons((prev) => [...prev, ...newIcons]);
+
+    newIcons.forEach((icon, i) => {
+      const delay = baseDelay + i * 75;
+
+      // Phase 0 → 1 (arc to midpoint)
+      setTimeout(() => {
+        setIcons((prev) =>
+          prev.map((ic) => (ic.id === icon.id ? { ...ic, phase: 1 } : ic))
+        );
+      }, delay + 30);
+
+      // Phase 1 → 2 (fly to target + fade)
+      setTimeout(() => {
+        setIcons((prev) =>
+          prev.map((ic) => (ic.id === icon.id ? { ...ic, phase: 2 } : ic))
+        );
+      }, delay + 30 + 280);
+
+      // Remove after animation completes
+      setTimeout(() => {
+        setIcons((prev) => prev.filter((ic) => ic.id !== icon.id));
+      }, delay + 30 + 280 + 420);
+    });
+  }
+
+  // Resource gains on dice roll
   useEffect(() => {
     const handler = (data: { distributions: Record<string, Partial<Record<Resource, number>>> }) => {
-      const pending: Omit<FlyingIcon, 'id'>[] = [];
-      let slot = 0;
+      const items: Parameters<typeof spawnBatch>[0] = [];
 
       for (const [playerId, dist] of Object.entries(data.distributions)) {
         const target = panelCenter(playerId);
@@ -56,29 +123,73 @@ export function ResourceFlowLayer({ gameState }: Props) {
         for (const [res, count] of Object.entries(dist) as [Resource, number][]) {
           const imgSrc = RESOURCE_IMAGES[res];
           if (!imgSrc) continue;
-          const n = Math.min(count, 3);
-          for (let i = 0; i < n; i++) {
+          for (let i = 0; i < Math.min(count, 3); i++) {
             const start = boardCenter();
-            pending.push({
-              kind: 'resource',
-              imgSrc,
-              startX: start.x,
-              startY: start.y,
-              dx: target.x - start.x,
-              dy: target.y - start.y,
-              departed: false,
-              delay: slot * 75,
+            items.push({
+              kind: 'resource', imgSrc,
+              sx: start.x, sy: start.y,
+              ex: target.x, ey: target.y,
+              leftArc: 0, upArc: 35,
             });
-            slot++;
           }
         }
       }
 
-      spawn(pending);
+      spawnBatch(items);
     };
 
     socket.on('game:resources_distributed', handler);
     return () => { socket.off('game:resources_distributed', handler); };
+  }, []);
+
+  // Player-to-player trade
+  useEffect(() => {
+    const handler = (data: {
+      fromPlayerId: string;
+      toPlayerId: string;
+      offered: Partial<Record<Resource, number>>;
+      received: Partial<Record<Resource, number>>;
+    }) => {
+      const fromPos = panelCenter(data.fromPlayerId);
+      const toPos   = panelCenter(data.toPlayerId);
+      if (!fromPos || !toPos) return;
+
+      const items: Parameters<typeof spawnBatch>[0] = [];
+
+      // Offered resources: fromPlayer → toPlayer
+      for (const [res, count] of Object.entries(data.offered) as [Resource, number][]) {
+        const imgSrc = RESOURCE_IMAGES[res];
+        if (!imgSrc) continue;
+        for (let i = 0; i < Math.min(count, 3); i++) {
+          items.push({
+            kind: 'resource', imgSrc,
+            sx: fromPos.x, sy: fromPos.y,
+            ex: toPos.x, ey: toPos.y,
+            // Arc toward the board (leftward = outward from the right panel)
+            leftArc: 70, upArc: 0,
+          });
+        }
+      }
+
+      // Received resources: toPlayer → fromPlayer
+      for (const [res, count] of Object.entries(data.received) as [Resource, number][]) {
+        const imgSrc = RESOURCE_IMAGES[res];
+        if (!imgSrc) continue;
+        for (let i = 0; i < Math.min(count, 3); i++) {
+          items.push({
+            kind: 'resource', imgSrc,
+            sx: toPos.x, sy: toPos.y,
+            ex: fromPos.x, ey: fromPos.y,
+            leftArc: 70, upArc: 0,
+          });
+        }
+      }
+
+      spawnBatch(items);
+    };
+
+    socket.on('game:trade_executed', handler);
+    return () => { socket.off('game:trade_executed', handler); };
   }, []);
 
   // Dev card purchase: detect from state change
@@ -93,8 +204,7 @@ export function ResourceFlowLayer({ gameState }: Props) {
       return;
     }
 
-    const pending: Omit<FlyingIcon, 'id'>[] = [];
-    let slot = 0;
+    const items: Parameters<typeof spawnBatch>[0] = [];
 
     for (const p of gameState.players) {
       const curr = p.devCardCount ?? p.devCards.length;
@@ -109,37 +219,29 @@ export function ResourceFlowLayer({ gameState }: Props) {
 
       for (let i = 0; i < Math.min(gained, 2); i++) {
         const start = boardCenter();
-        pending.push({
+        items.push({
           kind: 'devcard',
-          startX: start.x,
-          startY: start.y,
-          dx: target.x - start.x,
-          dy: target.y - start.y,
-          departed: false,
-          delay: slot * 75,
+          sx: start.x, sy: start.y,
+          ex: target.x, ey: target.y,
+          leftArc: 0, upArc: 35,
         });
-        slot++;
       }
     }
 
-    if (pending.length > 0) spawn(pending);
+    if (items.length > 0) spawnBatch(items);
   });
 
-  function spawn(pending: Omit<FlyingIcon, 'id'>[]) {
-    const newIcons = pending.map((p) => ({ ...p, id: nextId++ }));
-    setIcons((prev) => [...prev, ...newIcons]);
+  function transformForPhase(icon: FlyingIcon): string {
+    const { startX, startY, midX, midY, endX, endY, phase } = icon;
+    if (phase === 0) return 'translate(0, 0) scale(1)';
+    if (phase === 1) return `translate(${midX - startX}px, ${midY - startY}px) scale(1.15)`;
+    return `translate(${endX - startX}px, ${endY - startY}px) scale(0.4)`;
+  }
 
-    newIcons.forEach((icon) => {
-      // Brief delay so the element renders at start position first
-      setTimeout(() => {
-        setIcons((prev) =>
-          prev.map((ic) => (ic.id === icon.id ? { ...ic, departed: true } : ic))
-        );
-        setTimeout(() => {
-          setIcons((prev) => prev.filter((ic) => ic.id !== icon.id));
-        }, 750);
-      }, icon.delay + 30);
-    });
+  function transitionForPhase(phase: number): string {
+    if (phase === 0) return 'none';
+    if (phase === 1) return 'transform 0.28s ease-out';
+    return 'transform 0.38s ease-in, opacity 0.2s ease-in 0.18s';
   }
 
   return (
@@ -153,13 +255,9 @@ export function ResourceFlowLayer({ gameState }: Props) {
             top: icon.startY - 16,
             width: 32,
             height: 32,
-            transform: icon.departed
-              ? `translate(${icon.dx}px, ${icon.dy}px) scale(0.4)`
-              : 'translate(0,0) scale(1)',
-            opacity: icon.departed ? 0 : 1,
-            transition: icon.departed
-              ? 'transform 0.65s ease-in, opacity 0.25s ease-in 0.4s'
-              : 'none',
+            transform: transformForPhase(icon),
+            opacity: icon.phase === 2 ? 0 : 1,
+            transition: transitionForPhase(icon.phase),
             pointerEvents: 'none',
             filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
           }}

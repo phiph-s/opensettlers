@@ -728,6 +728,12 @@ export class GameEngine {
 
     this.state.activeTradeOffer = null;
     this.timer.cancel(this.gameId);
+    this.io.to(this.lobbyId).emit('game:trade_executed', {
+      fromPlayerId: activePlayerId,
+      toPlayerId: targetPlayerId,
+      offered: offer.offering,
+      received: offer.requesting,
+    });
     this.io.to(this.lobbyId).emit('game:trade_resolved', { offerId, outcome: 'accepted' });
     this.advancePhase('BUILD_PHASE');
     return null;

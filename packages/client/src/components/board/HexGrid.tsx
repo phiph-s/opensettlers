@@ -8,6 +8,7 @@ import { VertexSpot } from './VertexSpot.js';
 import { EdgeSpot } from './EdgeSpot.js';
 import { RobberSpot } from './RobberSpot.js';
 import { PortMarker } from './PortMarker.js';
+import { TerrainPatterns } from './TerrainPatterns.js';
 import { socket } from '../../socket.js';
 
 const COLOR_HEX: Record<string, string> = {
@@ -118,6 +119,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
       style={{ width: '100%', height: '100%' }}
     >
       <defs>
+        <TerrainPatterns />
         {/* Seamlessly tiling wave pattern — 120×60 tile */}
         <pattern
           id="oceanWaves"
