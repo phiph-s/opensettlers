@@ -60,7 +60,7 @@ export function GameScreen() {
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#f2ede4' }}>
         {/* Board — position:relative so floating overlays can sit above it */}
-        <div style={{ flex: 1, overflow: 'hidden', padding: 8, position: 'relative' }}>
+        <div style={{ flex: 1, overflow: 'hidden', padding: 8, position: 'relative', background: '#1a6b9a' }}>
           <PanZoomBoard>
             <HexGrid gameState={gameState} myPlayerId={myPlayerId} validMoves={validMoves} buildMode={buildMode} onBuildModeChange={setBuildMode} />
           </PanZoomBoard>

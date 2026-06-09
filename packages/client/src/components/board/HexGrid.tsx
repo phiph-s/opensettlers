@@ -110,11 +110,47 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
     return result;
   }, [board.vertices, layout]);
 
+  const [vbX, vbY, vbW, vbH] = layout.viewBox.split(' ').map(Number);
+
   return (
     <svg
       viewBox={layout.viewBox}
       style={{ width: '100%', height: '100%' }}
     >
+      <defs>
+        {/* Seamlessly tiling wave pattern — 120×60 tile */}
+        <pattern
+          id="oceanWaves"
+          x="0" y="0"
+          width="120" height="60"
+          patternUnits="userSpaceOnUse"
+          patternTransform="translate(0 0)"
+        >
+          {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+          {/* @ts-ignore — animateTransform is valid SVG but has no React types */}
+          <animateTransform
+            attributeName="patternTransform"
+            type="translate"
+            from="0 0"
+            to="-120 0"
+            dur="7s"
+            repeatCount="indefinite"
+          />
+          {/* Main wave */}
+          <path d="M 0 22 C 30 12, 90 32, 120 22" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5" strokeLinecap="round" />
+          {/* Counter wave */}
+          <path d="M 0 44 C 40 54, 80 34, 120 44" fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="1.8" strokeLinecap="round" />
+          {/* Ripple */}
+          <path d="M 0 10 C 20 6, 100 14, 120 10"  fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1.2" strokeLinecap="round" />
+          {/* Deep ripple */}
+          <path d="M 0 54 C 60 48, 80 60, 120 54"  fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"   strokeLinecap="round" />
+        </pattern>
+      </defs>
+
+      {/* Ocean background */}
+      <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="#1a6b9a" />
+      <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="url(#oceanWaves)" />
+
       {/* Hex tiles */}
       {Object.entries(board.hexes).map(([hk, hex]) => {
         const center = layout.hexCenters[hk];
