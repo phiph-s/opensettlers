@@ -675,6 +675,11 @@ export class GameEngine {
     const offer = this.state.activeTradeOffer;
     if (!offer || offer.id !== offerId) return 'No such trade offer';
     if (offer.fromPlayerId === playerId) return 'Cannot accept your own offer';
+    const acceptor = this.state.players.find((p) => p.id === playerId);
+    if (!acceptor) return 'Player not found';
+    for (const [res, amt] of Object.entries(offer.requesting) as [Resource, number][]) {
+      if ((acceptor.hand[res] ?? 0) < amt) return 'Insufficient resources';
+    }
     if (!offer.acceptedBy.includes(playerId)) offer.acceptedBy.push(playerId);
     this.broadcastState();
     return null;

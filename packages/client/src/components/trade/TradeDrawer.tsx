@@ -50,18 +50,25 @@ export function TradeDrawer({ gameState, me, portRates, isMyTurn }: Props) {
             </>
           ) : (
             <>
-              {!activeTradeOffer.acceptedBy.includes(me.id) && !activeTradeOffer.rejectedBy.includes(me.id) && (
-                <>
-                  <button style={{ ...btnStyle, background: '#27ae60' }}
-                    onClick={() => socket.emit('game:accept_trade', { offerId: activeTradeOffer.id })}>
-                    Accept
-                  </button>
-                  <button style={{ ...btnStyle, background: '#c0392b' }}
-                    onClick={() => socket.emit('game:reject_trade', { offerId: activeTradeOffer.id })}>
-                    Reject
-                  </button>
-                </>
-              )}
+              {!activeTradeOffer.acceptedBy.includes(me.id) && !activeTradeOffer.rejectedBy.includes(me.id) && (() => {
+                const canAffordTrade = (Object.entries(activeTradeOffer.requesting) as [Resource, number][])
+                  .every(([res, amt]) => (me.hand[res] ?? 0) >= amt);
+                return (
+                  <>
+                    <button
+                      style={{ ...btnStyle, background: canAffordTrade ? '#27ae60' : '#aaa', cursor: canAffordTrade ? 'pointer' : 'not-allowed' }}
+                      disabled={!canAffordTrade}
+                      title={canAffordTrade ? undefined : "You don't have the required resources"}
+                      onClick={() => socket.emit('game:accept_trade', { offerId: activeTradeOffer.id })}>
+                      Accept
+                    </button>
+                    <button style={{ ...btnStyle, background: '#c0392b' }}
+                      onClick={() => socket.emit('game:reject_trade', { offerId: activeTradeOffer.id })}>
+                      Reject
+                    </button>
+                  </>
+                );
+              })()}
               {activeTradeOffer.acceptedBy.includes(me.id) && <span style={{ color: '#2ecc71' }}>Accepted ✓</span>}
               {activeTradeOffer.rejectedBy.includes(me.id) && <span style={{ color: '#e74c3c' }}>Rejected ✗</span>}
             </>

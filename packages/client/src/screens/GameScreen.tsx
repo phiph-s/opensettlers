@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
 import { useValidMoves } from '../hooks/useValidMoves.js';
+import { useSoundEffects } from '../hooks/useSoundEffects.js';
 import { HexGrid } from '../components/board/HexGrid.js';
 import { PanZoomBoard } from '../components/board/PanZoomBoard.js';
 import { TurnPhaseBar } from '../components/hud/TurnPhaseBar.js';
@@ -15,6 +16,7 @@ import { BuildPanel } from '../components/hud/BuildPanel.js';
 import { TradeDrawer } from '../components/trade/TradeDrawer.js';
 import { DiceDisplay } from '../components/hud/DiceDisplay.js';
 import { ActivityLog } from '../components/panel/ActivityLog.js';
+import { StealDialog } from '../components/hud/StealDialog.js';
 import type { GameOverSummary } from '@opensettlers/shared';
 import { socket } from '../socket.js';
 
@@ -22,6 +24,7 @@ export function GameScreen() {
   const gameState = useGameStore((s) => s.gameState);
   const { myPlayerId } = usePlayerStore();
   const validMoves = useValidMoves(gameState, myPlayerId);
+  useSoundEffects(gameState, myPlayerId);
   const [gameSummary, setGameSummary] = useState<GameOverSummary | null>(null);
   const [buildMode, setBuildMode] = useState<'road' | 'settlement' | 'city' | null>(null);
 
@@ -120,6 +123,11 @@ export function GameScreen() {
         )}
         {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} />}
       </div>
+
+      {/* Steal dialog */}
+      {phase === 'STEAL' && myPlayerId === activePlayer?.id && gameState.robberCandidates.length > 1 && (
+        <StealDialog candidates={gameState.robberCandidates} players={players} />
+      )}
 
       {/* Discard modal */}
       {me && myDiscardCount > 0 && (

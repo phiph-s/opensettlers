@@ -1,4 +1,4 @@
-import { TERRAIN_TO_RESOURCE, canAfford } from '@opensettlers/shared';
+import { TERRAIN_TO_RESOURCE, canAfford, hexVertexKeys } from '@opensettlers/shared';
 import type { GameBoard, GameState, Player, Resource } from '@opensettlers/shared';
 import type { Cost } from '@opensettlers/shared';
 
@@ -33,9 +33,9 @@ export function distributeResources(
     const resource = (TERRAIN_TO_RESOURCE as Record<string, Resource | undefined>)[hex.terrain];
     if (!resource) continue;
 
-    for (const vertex of Object.values(board.vertices)) {
-      if (!vertex.adjacentHexKeys.includes(hex.coord.q + ',' + hex.coord.r + ',' + hex.coord.s)) continue;
-      if (!vertex.building) continue;
+    for (const vk of hexVertexKeys(hex.coord)) {
+      const vertex = board.vertices[vk];
+      if (!vertex?.building) continue;
       const amount = vertex.building.type === 'city' ? 2 : 1;
       const pid = vertex.building.owner;
       if (!distributions[pid]) distributions[pid] = {};
