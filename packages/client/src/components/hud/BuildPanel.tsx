@@ -163,7 +163,7 @@ export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuild
             player={me}
             piecesLeft={me.roadsLeft}
             disabled={!isMyTurn || !canAfford(me, BUILDING_COSTS.road) || validMoves.roadEdges.size === 0}
-            reason={isMyTurn && (me.roadsLeft === 0 ? 'No roads left' : validMoves.roadEdges.size === 0 ? 'No valid locations' : undefined)}
+            reason={isMyTurn ? (me.roadsLeft === 0 ? 'No roads left' : validMoves.roadEdges.size === 0 ? 'No valid locations' : undefined) : undefined}
             active={buildMode === 'road'}
             onClick={() => toggle('road')}
           />
@@ -173,7 +173,7 @@ export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuild
             player={me}
             piecesLeft={me.settlementsLeft}
             disabled={!isMyTurn || !canAfford(me, BUILDING_COSTS.settlement) || validMoves.settlementVertices.size === 0}
-            reason={isMyTurn && (me.settlementsLeft === 0 ? 'No settlements left' : validMoves.settlementVertices.size === 0 ? 'No valid locations' : undefined)}
+            reason={isMyTurn ? (me.settlementsLeft === 0 ? 'No settlements left' : validMoves.settlementVertices.size === 0 ? 'No valid locations' : undefined) : undefined}
             active={buildMode === 'settlement'}
             onClick={() => toggle('settlement')}
           />
@@ -183,7 +183,7 @@ export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuild
             player={me}
             piecesLeft={me.citiesLeft}
             disabled={!isMyTurn || !canAfford(me, BUILDING_COSTS.city) || validMoves.cityVertices.size === 0}
-            reason={isMyTurn && (me.citiesLeft === 0 ? 'No cities left' : validMoves.cityVertices.size === 0 ? 'No settlements to upgrade' : undefined)}
+            reason={isMyTurn ? (me.citiesLeft === 0 ? 'No cities left' : validMoves.cityVertices.size === 0 ? 'No settlements to upgrade' : undefined) : undefined}
             active={buildMode === 'city'}
             onClick={() => toggle('city')}
           />
