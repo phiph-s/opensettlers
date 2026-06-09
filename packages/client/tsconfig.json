@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "outDir": "./dist",
+    "paths": {
+      "@opensettlers/shared": ["../shared/src/index.ts"]
+    },
+    "noEmit": true,
+    "exactOptionalPropertyTypes": false,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

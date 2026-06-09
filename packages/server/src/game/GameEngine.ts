@@ -1,0 +1,808 @@
+import { v4 as uuidv4 } from 'uuid';
+import {
+  computeLongestRoad,
+  cubeKey,
+  BUILDING_COSTS,
+  LONGEST_ROAD_MINIMUM,
+} from '@opensettlers/shared';
+import type {
+  CubeCoord,
+  DevCardType,
+  EdgeKey,
+  GameState,
+  LobbySettings,
+  Player,
+  Resource,
+  TurnPhase,
+  VertexKey,
+} from '@opensettlers/shared';
+import type { Server as IOServer, Socket } from 'socket.io';
+import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
+
+import { buildBoard, STANDARD_MAP } from '../maps/MapGenerator.js';
+import { TurnTimer } from './TurnTimer.js';
+import {
+  canAfford,
+  deductCost,
+  grantResources,
+  distributeResources,
+  handTotal,
+  autoDiscard,
+} from './ResourceManager.js';
+import {
+  computePendingDiscards,
+  computeRobberCandidates,
+} from './RobberManager.js';
+import {
+  getBestMaritimeRate,
+  validateMaritimeTrade,
+  validatePlayerTrade,
+} from './TradeManager.js';
+import {
+  buildDeck,
+  shuffleDeck,
+  canPlayDevCard,
+  removeDevCard,
+  updateLargestArmy,
+} from './DevCardManager.js';
+import { checkWin, computeVP } from './VictoryChecker.js';
+import {
+  canPlaceSettlementAt,
+  canPlaceRoadAt,
+  canPlaceCityAt,
+  canMoveRobberTo,
+  isActivePlayer,
+  nextSetupPlayerIndex,
+} from './TurnStateMachine.js';
+import { PIECES_PER_PLAYER } from '@opensettlers/shared';
+
+type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
+
+export class GameEngine {
+  readonly gameId: string;
+  readonly lobbyId: string;
+  private state: GameState;
+  private devDeck: DevCardType[];
+  private timer: TurnTimer;
+  private io: IO;
+  private settings: LobbySettings;
+
+  constructor(
+    lobbyId: string,
+    players: Array<{ id: string; name: string; color: string }>,
+    settings: LobbySettings,
+    io: IO
+  ) {
+    this.gameId = uuidv4();
+    this.lobbyId = lobbyId;
+    this.io = io;
+    this.settings = settings;
+    this.timer = new TurnTimer();
+    this.devDeck = shuffleDeck(buildDeck(), Math.random);
+
+    const mapTemplate = STANDARD_MAP;
+    const board = buildBoard(mapTemplate, Math.random);
+
+    const gamePlayers: Player[] = players.map((p, i) => ({
+      id: p.id,
+      name: p.name,
+      color: p.color as Player['color'],
+      seatIndex: i,
+      hand: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
+      devCards: [],
+      knightsPlayed: 0,
+      settlementsLeft: PIECES_PER_PLAYER.settlements,
+      citiesLeft: PIECES_PER_PLAYER.cities,
+      roadsLeft: PIECES_PER_PLAYER.roads,
+      hasLongestRoad: false,
+      hasLargestArmy: false,
+      isConnected: true,
+      victoryPoints: 0,
+    }));
+
+    this.state = {
+      gameId: this.gameId,
+      lobbyId,
+      mapTemplateId: mapTemplate.id,
+      board,
+      players: gamePlayers,
+      activePlayerIndex: 0,
+      turnNumber: 0,
+      phase: 'SETUP_PLACE_SETTLEMENT',
+      diceRoll: null,
+      devCardDeckSize: this.devDeck.length,
+      longestRoadOwner: null,
+      largestArmyOwner: null,
+      longestRoadLength: 0,
+      largestArmySize: 0,
+      activeTradeOffer: null,
+      setupDirection: 'clockwise',
+      setupRound: 1,
+      phaseDeadline: null,
+      winner: null,
+      devRoadsRemaining: 0,
+      yearOfPlentyRemaining: 0,
+      pendingDiscards: {},
+      robberCandidates: [],
+      lastPlacedSettlementKey: null,
+    };
+  }
+
+  getState(): GameState {
+    return this.state;
+  }
+
+  /** Returns a sanitized view of game state for a specific player */
+  sanitizeFor(playerId: string): GameState {
+    const players = this.state.players.map((p) => {
+      if (p.id === playerId) return p;
+      return {
+        ...p,
+        devCards: [],
+        devCardCount: p.devCards.length,
+      };
+    });
+    return { ...this.state, players };
+  }
+
+  broadcastState(): void {
+    for (const player of this.state.players) {
+      this.io.to(player.id).emit('game:state', this.sanitizeFor(player.id));
+    }
+  }
+
+  setPlayerConnected(playerId: string, connected: boolean): void {
+    const player = this.state.players.find((p) => p.id === playerId);
+    if (player) player.isConnected = connected;
+    this.broadcastState();
+  }
+
+  private advancePhase(phase: TurnPhase): void {
+    this.state.phase = phase;
+    const activePlayer = this.state.players[this.state.activePlayerIndex];
+
+    const phaseSeconds = this.settings.timerSeconds[phase] ?? 60;
+    const deadline = this.settings.timerEnabled
+      ? Date.now() + phaseSeconds * 1000
+      : null;
+    this.state.phaseDeadline = deadline;
+
+    this.io.to(this.lobbyId).emit('game:phase_changed', {
+      phase,
+      deadline,
+      activePlayerId: activePlayer?.id ?? '',
+    });
+
+    if (this.settings.timerEnabled) {
+      this.timer.set(this.gameId, phaseSeconds, () => this.handleTimeout(phase));
+    }
+
+    this.broadcastState();
+  }
+
+  private handleTimeout(phase: TurnPhase): void {
+    const activePlayer = this.state.players[this.state.activePlayerIndex];
+    if (!activePlayer) return;
+
+    switch (phase) {
+      case 'PRE_ROLL':
+      case 'ROLL':
+        this.handleRoll(activePlayer.id);
+        break;
+      case 'DISCARD_PHASE':
+        for (const [pid, count] of Object.entries(this.state.pendingDiscards)) {
+          const p = this.state.players.find((pl) => pl.id === pid);
+          if (p) {
+            const toDiscard = autoDiscard(p, count);
+            this.handleDiscard(pid, toDiscard);
+          }
+        }
+        break;
+      case 'ROBBER_PLACEMENT': {
+        const desert = Object.values(this.state.board.hexes).find(
+          (h) => h.terrain === 'desert' && !h.hasRobber
+        ) ?? Object.values(this.state.board.hexes).find((h) => h.terrain !== 'sea');
+        if (desert) this.handleMoveRobber(activePlayer.id, desert.coord);
+        break;
+      }
+      case 'STEAL':
+        if (this.state.robberCandidates.length > 0) {
+          this.handleSteal(activePlayer.id, this.state.robberCandidates[0]!);
+        } else {
+          this.advancePhase('BUILD_PHASE');
+        }
+        break;
+      case 'TRADE_OFFER_PENDING':
+        if (this.state.activeTradeOffer) {
+          this.cancelTrade(activePlayer.id, this.state.activeTradeOffer.id);
+        }
+        break;
+      case 'BUILD_PHASE':
+      case 'DEV_ROAD_BUILDING':
+        this.handleEndTurn(activePlayer.id);
+        break;
+      case 'YEAR_OF_PLENTY_SELECT':
+      case 'MONOPOLY_SELECT':
+        this.advancePhase('BUILD_PHASE');
+        break;
+    }
+  }
+
+  // ── Setup ──────────────────────────────────────────────────────────────────
+
+  handlePlaceSetupSettlement(playerId: string, vk: VertexKey): string | null {
+    if (!canPlaceSettlementAt(this.state, playerId, vk)) return 'Invalid settlement placement';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    this.state.board.vertices[vk]!.building = { type: 'settlement', owner: playerId };
+    player.settlementsLeft--;
+    this.state.lastPlacedSettlementKey = vk;
+
+    // Grant starting resources for second settlement
+    if (this.state.setupRound === 2) {
+      const vertex = this.state.board.vertices[vk]!;
+      for (const hk of vertex.adjacentHexKeys) {
+        const hex = this.state.board.hexes[hk];
+        if (!hex || hex.terrain === 'sea' || hex.terrain === 'desert') continue;
+        const resource = ({ forest: 'wood', hills: 'brick', fields: 'wheat', pasture: 'sheep', mountains: 'ore' } as Record<string, Resource>)[hex.terrain];
+        if (resource) player.hand[resource]++;
+      }
+    }
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'settlement',
+      key: vk,
+      playerId,
+    });
+
+    this.updateLongestRoad();
+    this.updateVP();
+    this.advancePhase('SETUP_PLACE_ROAD');
+    return null;
+  }
+
+  handlePlaceSetupRoad(playerId: string, ek: EdgeKey): string | null {
+    if (!canPlaceRoadAt(this.state, playerId, ek)) return 'Invalid road placement';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    this.state.board.edges[ek]!.road = { owner: playerId };
+    player.roadsLeft--;
+    this.state.lastPlacedSettlementKey = null;
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'road',
+      key: ek,
+      playerId,
+    });
+
+    this.updateLongestRoad();
+
+    const next = nextSetupPlayerIndex(this.state);
+    if (next.done) {
+      this.state.activePlayerIndex = 0;
+      this.state.turnNumber = 1;
+      this.advancePhase('PRE_ROLL');
+    } else {
+      this.state.activePlayerIndex = next.index;
+      this.state.setupRound = next.round;
+      this.state.setupDirection = next.direction;
+      this.advancePhase('SETUP_PLACE_SETTLEMENT');
+    }
+    return null;
+  }
+
+  // ── Roll ───────────────────────────────────────────────────────────────────
+
+  handleRoll(playerId: string): string | null {
+    if (this.state.phase !== 'PRE_ROLL' && this.state.phase !== 'ROLL') return 'Cannot roll now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const d1 = Math.ceil(Math.random() * 6);
+    const d2 = Math.ceil(Math.random() * 6);
+    const roll = d1 + d2;
+    this.state.diceRoll = [d1, d2];
+
+    this.timer.cancel(this.gameId);
+    this.io.to(this.lobbyId).emit('game:dice_rolled', {
+      roll: [d1, d2],
+      activePlayerId: playerId,
+    });
+
+    if (roll === 7) {
+      const pending = computePendingDiscards(this.state);
+      this.state.pendingDiscards = pending;
+      if (Object.keys(pending).length > 0) {
+        this.advancePhase('DISCARD_PHASE');
+      } else {
+        this.advancePhase('ROBBER_PLACEMENT');
+      }
+    } else {
+      const distributions = distributeResources(this.state.board, this.state.players, roll);
+      this.io.to(this.lobbyId).emit('game:resources_distributed', { distributions });
+      this.advancePhase('BUILD_PHASE');
+    }
+    return null;
+  }
+
+  // ── Discard ────────────────────────────────────────────────────────────────
+
+  handleDiscard(playerId: string, resources: Partial<Record<Resource, number>>): string | null {
+    const expected = this.state.pendingDiscards[playerId];
+    if (expected === undefined) return 'Not expected to discard';
+
+    const total = Object.values(resources).reduce((s, n) => s + (n ?? 0), 0);
+    if (total !== expected) return `Must discard exactly ${expected} cards`;
+
+    const player = this.state.players.find((p) => p.id === playerId);
+    if (!player) return 'Player not found';
+
+    for (const [res, amt] of Object.entries(resources) as [Resource, number][]) {
+      if ((player.hand[res] ?? 0) < amt) return `Insufficient ${res}`;
+    }
+
+    for (const [res, amt] of Object.entries(resources) as [Resource, number][]) {
+      player.hand[res] = (player.hand[res] ?? 0) - amt;
+    }
+
+    delete this.state.pendingDiscards[playerId];
+
+    if (Object.keys(this.state.pendingDiscards).length === 0) {
+      this.timer.cancel(this.gameId);
+      this.advancePhase('ROBBER_PLACEMENT');
+    } else {
+      this.broadcastState();
+    }
+    return null;
+  }
+
+  // ── Robber ─────────────────────────────────────────────────────────────────
+
+  handleMoveRobber(playerId: string, hexCoord: CubeCoord): string | null {
+    if (!canMoveRobberTo(this.state, playerId, hexCoord)) return 'Invalid robber placement';
+
+    // Clear old robber
+    for (const hex of Object.values(this.state.board.hexes)) {
+      hex.hasRobber = false;
+    }
+    const hk = cubeKey(hexCoord);
+    this.state.board.hexes[hk]!.hasRobber = true;
+
+    this.io.to(this.lobbyId).emit('game:robber_moved', { hexCoord, byPlayerId: playerId });
+
+    const candidates = computeRobberCandidates(this.state, hexCoord);
+    this.state.robberCandidates = candidates;
+
+    this.timer.cancel(this.gameId);
+    if (candidates.length > 1) {
+      this.advancePhase('STEAL');
+    } else if (candidates.length === 1) {
+      this.doSteal(playerId, candidates[0]!);
+      this.advancePhase('BUILD_PHASE');
+    } else {
+      this.advancePhase('BUILD_PHASE');
+    }
+    return null;
+  }
+
+  handleSteal(playerId: string, targetPlayerId: string): string | null {
+    if (this.state.phase !== 'STEAL') return 'Cannot steal now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (!this.state.robberCandidates.includes(targetPlayerId)) return 'Invalid steal target';
+
+    this.doSteal(playerId, targetPlayerId);
+    this.state.robberCandidates = [];
+    this.timer.cancel(this.gameId);
+    this.advancePhase('BUILD_PHASE');
+    return null;
+  }
+
+  private doSteal(byPlayerId: string, fromPlayerId: string): void {
+    const thief = this.state.players.find((p) => p.id === byPlayerId)!;
+    const victim = this.state.players.find((p) => p.id === fromPlayerId)!;
+
+    const available = (Object.entries(victim.hand) as [Resource, number][]).filter(
+      ([, n]) => n > 0
+    );
+    if (available.length === 0) return;
+
+    const [resource] = available[Math.floor(Math.random() * available.length)]!;
+    victim.hand[resource]--;
+    thief.hand[resource]++;
+
+    // Send targeted events: only the two parties see the resource type
+    this.io.to(byPlayerId).emit('game:stolen', { fromPlayerId, byPlayerId, resource });
+    this.io.to(fromPlayerId).emit('game:stolen', { fromPlayerId, byPlayerId, resource });
+    // Others only see a steal happened
+    this.io.to(this.lobbyId).except([byPlayerId, fromPlayerId]).emit('game:stolen', {
+      fromPlayerId,
+      byPlayerId,
+    });
+  }
+
+  // ── Building ───────────────────────────────────────────────────────────────
+
+  handleBuildRoad(playerId: string, ek: EdgeKey): string | null {
+    if (!canPlaceRoadAt(this.state, playerId, ek)) return 'Invalid road placement';
+    const player = this.state.players.find((p) => p.id === playerId)!;
+
+    if (this.state.phase === 'BUILD_PHASE') {
+      if (!canAfford(player, BUILDING_COSTS.road)) return 'Cannot afford road';
+      deductCost(player, BUILDING_COSTS.road);
+    }
+    // DEV_ROAD_BUILDING: free
+
+    this.state.board.edges[ek]!.road = { owner: playerId };
+    player.roadsLeft--;
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'road',
+      key: ek,
+      playerId,
+    });
+
+    this.updateLongestRoad();
+
+    if (this.state.phase === 'DEV_ROAD_BUILDING') {
+      this.state.devRoadsRemaining = (this.state.devRoadsRemaining - 1) as 0 | 1 | 2;
+      if (this.state.devRoadsRemaining === 0) {
+        this.advancePhase('BUILD_PHASE');
+        return null;
+      }
+    }
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handleBuildSettlement(playerId: string, vk: VertexKey): string | null {
+    if (!canPlaceSettlementAt(this.state, playerId, vk)) return 'Invalid settlement placement';
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    if (!canAfford(player, BUILDING_COSTS.settlement)) return 'Cannot afford settlement';
+
+    deductCost(player, BUILDING_COSTS.settlement);
+    this.state.board.vertices[vk]!.building = { type: 'settlement', owner: playerId };
+    player.settlementsLeft--;
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'settlement',
+      key: vk,
+      playerId,
+    });
+
+    // Placing a settlement may break an opponent's longest road
+    this.updateLongestRoad();
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handleBuildCity(playerId: string, vk: VertexKey): string | null {
+    if (!canPlaceCityAt(this.state, playerId, vk)) return 'Invalid city placement';
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    if (!canAfford(player, BUILDING_COSTS.city)) return 'Cannot afford city';
+
+    deductCost(player, BUILDING_COSTS.city);
+    this.state.board.vertices[vk]!.building = { type: 'city', owner: playerId };
+    player.citiesLeft--;
+    player.settlementsLeft++;
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'city',
+      key: vk,
+      playerId,
+    });
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handleBuyDevCard(playerId: string): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot buy dev card now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.devDeck.length === 0) return 'Dev card deck is empty';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    if (!canAfford(player, BUILDING_COSTS.dev_card)) return 'Cannot afford dev card';
+
+    deductCost(player, BUILDING_COSTS.dev_card);
+    const card = this.devDeck.pop()!;
+    this.state.devCardDeckSize = this.devDeck.length;
+    player.devCards.push({ type: card, turnDrawn: this.state.turnNumber });
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  // ── Dev Cards ──────────────────────────────────────────────────────────────
+
+  handlePlayKnight(playerId: string): string | null {
+    if (this.state.phase !== 'PRE_ROLL' && this.state.phase !== 'BUILD_PHASE') return 'Cannot play knight now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const err = canPlayDevCard(player, 'knight', this.state.turnNumber);
+    if (err) return err;
+
+    removeDevCard(player, 'knight', this.state.turnNumber);
+    player.knightsPlayed++;
+
+    this.io.to(this.lobbyId).emit('game:dev_card_played', { cardType: 'knight', playerId });
+
+    const armyChanged = updateLargestArmy(this.state);
+    if (armyChanged) {
+      this.io.to(this.lobbyId).emit('game:largest_army_changed', {
+        playerId: this.state.largestArmyOwner,
+        count: this.state.largestArmySize,
+      });
+    }
+
+    this.advancePhase('ROBBER_PLACEMENT');
+    return null;
+  }
+
+  handlePlayRoadBuilding(playerId: string): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const err = canPlayDevCard(player, 'road_building', this.state.turnNumber);
+    if (err) return err;
+
+    removeDevCard(player, 'road_building', this.state.turnNumber);
+    this.io.to(this.lobbyId).emit('game:dev_card_played', {
+      cardType: 'road_building',
+      playerId,
+    });
+
+    this.state.devRoadsRemaining = player.roadsLeft >= 2 ? 2 : player.roadsLeft > 0 ? 1 : 0;
+    if (this.state.devRoadsRemaining === 0) return null;
+    this.advancePhase('DEV_ROAD_BUILDING');
+    return null;
+  }
+
+  handlePlayYearOfPlenty(playerId: string, r1: Resource, r2: Resource): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const err = canPlayDevCard(player, 'year_of_plenty', this.state.turnNumber);
+    if (err) return err;
+
+    removeDevCard(player, 'year_of_plenty', this.state.turnNumber);
+    player.hand[r1] = (player.hand[r1] ?? 0) + 1;
+    player.hand[r2] = (player.hand[r2] ?? 0) + 1;
+
+    this.io.to(this.lobbyId).emit('game:dev_card_played', {
+      cardType: 'year_of_plenty',
+      playerId,
+    });
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handlePlayMonopoly(playerId: string, resource: Resource): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const err = canPlayDevCard(player, 'monopoly', this.state.turnNumber);
+    if (err) return err;
+
+    removeDevCard(player, 'monopoly', this.state.turnNumber);
+
+    let stolen = 0;
+    for (const other of this.state.players) {
+      if (other.id === playerId) continue;
+      stolen += other.hand[resource] ?? 0;
+      other.hand[resource] = 0;
+    }
+    player.hand[resource] = (player.hand[resource] ?? 0) + stolen;
+
+    this.io.to(this.lobbyId).emit('game:dev_card_played', {
+      cardType: 'monopoly',
+      playerId,
+    });
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  // ── Trading ────────────────────────────────────────────────────────────────
+
+  handleMaritimeTrade(
+    playerId: string,
+    giving: Partial<Record<Resource, number>>,
+    receiving: Partial<Record<Resource, number>>
+  ): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot trade now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const err = validateMaritimeTrade(player, this.state.board, giving, receiving);
+    if (err) return err;
+
+    for (const [res, amt] of Object.entries(giving) as [Resource, number][]) {
+      player.hand[res] = (player.hand[res] ?? 0) - amt;
+    }
+    for (const [res, amt] of Object.entries(receiving) as [Resource, number][]) {
+      player.hand[res] = (player.hand[res] ?? 0) + amt;
+    }
+
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handleProposeTrade(
+    playerId: string,
+    offering: Partial<Record<Resource, number>>,
+    requesting: Partial<Record<Resource, number>>
+  ): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot propose trade now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+
+    const err = validatePlayerTrade(offering, requesting);
+    if (err) return err;
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    for (const [res, amt] of Object.entries(offering) as [Resource, number][]) {
+      if ((player.hand[res] ?? 0) < amt) return `Insufficient ${res}`;
+    }
+
+    const offer = {
+      id: uuidv4(),
+      fromPlayerId: playerId,
+      offering,
+      requesting,
+      acceptedBy: [],
+      rejectedBy: [],
+      expiresAt: Date.now() + (this.settings.timerSeconds.TRADE_OFFER_PENDING ?? 15) * 1000,
+    };
+    this.state.activeTradeOffer = offer;
+
+    this.io.to(this.lobbyId).emit('game:trade_proposed', offer);
+    this.advancePhase('TRADE_OFFER_PENDING');
+    return null;
+  }
+
+  handleAcceptTrade(playerId: string, offerId: string): string | null {
+    const offer = this.state.activeTradeOffer;
+    if (!offer || offer.id !== offerId) return 'No such trade offer';
+    if (offer.fromPlayerId === playerId) return 'Cannot accept your own offer';
+    if (!offer.acceptedBy.includes(playerId)) offer.acceptedBy.push(playerId);
+    this.broadcastState();
+    return null;
+  }
+
+  handleRejectTrade(playerId: string, offerId: string): string | null {
+    const offer = this.state.activeTradeOffer;
+    if (!offer || offer.id !== offerId) return 'No such trade offer';
+    if (!offer.rejectedBy.includes(playerId)) offer.rejectedBy.push(playerId);
+
+    const totalOthers = this.state.players.length - 1;
+    if (offer.rejectedBy.length >= totalOthers) {
+      this.cancelTrade(offer.fromPlayerId, offerId);
+    } else {
+      this.broadcastState();
+    }
+    return null;
+  }
+
+  handleConfirmTrade(activePlayerId: string, offerId: string, targetPlayerId: string): string | null {
+    const offer = this.state.activeTradeOffer;
+    if (!offer || offer.id !== offerId) return 'No such trade offer';
+    if (!isActivePlayer(this.state, activePlayerId)) return 'Not your turn';
+    if (!offer.acceptedBy.includes(targetPlayerId)) return 'Target has not accepted';
+
+    const active = this.state.players.find((p) => p.id === activePlayerId)!;
+    const target = this.state.players.find((p) => p.id === targetPlayerId)!;
+
+    // Validate active still has resources
+    for (const [res, amt] of Object.entries(offer.offering) as [Resource, number][]) {
+      if ((active.hand[res] ?? 0) < amt) return `Active player no longer has ${res}`;
+    }
+    for (const [res, amt] of Object.entries(offer.requesting) as [Resource, number][]) {
+      if ((target.hand[res] ?? 0) < amt) return `Target no longer has ${res}`;
+    }
+
+    for (const [res, amt] of Object.entries(offer.offering) as [Resource, number][]) {
+      active.hand[res] = (active.hand[res] ?? 0) - amt;
+      target.hand[res] = (target.hand[res] ?? 0) + amt;
+    }
+    for (const [res, amt] of Object.entries(offer.requesting) as [Resource, number][]) {
+      target.hand[res] = (target.hand[res] ?? 0) - amt;
+      active.hand[res] = (active.hand[res] ?? 0) + amt;
+    }
+
+    this.state.activeTradeOffer = null;
+    this.timer.cancel(this.gameId);
+    this.io.to(this.lobbyId).emit('game:trade_resolved', { offerId, outcome: 'accepted' });
+    this.advancePhase('BUILD_PHASE');
+    return null;
+  }
+
+  cancelTrade(playerId: string, offerId: string): string | null {
+    const offer = this.state.activeTradeOffer;
+    if (!offer || offer.id !== offerId) return 'No such trade offer';
+    this.state.activeTradeOffer = null;
+    this.timer.cancel(this.gameId);
+    this.io.to(this.lobbyId).emit('game:trade_resolved', { offerId, outcome: 'cancelled' });
+    this.advancePhase('BUILD_PHASE');
+    return null;
+  }
+
+  // ── End Turn ───────────────────────────────────────────────────────────────
+
+  handleEndTurn(playerId: string): string | null {
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.state.phase !== 'BUILD_PHASE' && this.state.phase !== 'DEV_ROAD_BUILDING') {
+      return 'Cannot end turn now';
+    }
+
+    this.timer.cancel(this.gameId);
+
+    this.updateVP();
+    const winner = checkWin(this.state);
+    if (winner) {
+      this.state.winner = winner;
+      this.state.phase = 'GAME_OVER';
+      const breakdown: Record<string, ReturnType<typeof computeVP>> = {};
+      for (const p of this.state.players) {
+        breakdown[p.id] = computeVP(this.state, p);
+      }
+      this.io.to(this.lobbyId).emit('game:over', { winnerId: winner, breakdown });
+      this.broadcastState();
+      return null;
+    }
+
+    this.state.activePlayerIndex =
+      (this.state.activePlayerIndex + 1) % this.state.players.length;
+    this.state.turnNumber++;
+    this.advancePhase('PRE_ROLL');
+    return null;
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private updateLongestRoad(): void {
+    const playerIds = this.state.players.map((p) => p.id);
+    const result = computeLongestRoad(
+      this.state.board,
+      playerIds,
+      this.state.longestRoadOwner,
+      this.state.longestRoadLength
+    );
+
+    if (result.owner !== this.state.longestRoadOwner || result.length !== this.state.longestRoadLength) {
+      // Update flags
+      for (const p of this.state.players) p.hasLongestRoad = false;
+      if (result.owner) {
+        const owner = this.state.players.find((p) => p.id === result.owner);
+        if (owner) owner.hasLongestRoad = true;
+      }
+      this.state.longestRoadOwner = result.owner;
+      this.state.longestRoadLength = result.length;
+
+      this.io.to(this.lobbyId).emit('game:longest_road_changed', {
+        playerId: result.owner,
+        length: result.length,
+      });
+    }
+  }
+
+  private updateVP(): void {
+    for (const player of this.state.players) {
+      player.victoryPoints = computeVP(this.state, player).total;
+    }
+  }
+
+  destroy(): void {
+    this.timer.cancelAll();
+  }
+}
