@@ -17,6 +17,7 @@ export interface ClientToServerEvents {
     ack: (res: Ack<{ lobby: LobbyState; playerId: string }>) => void
   ) => void;
   'lobby:list': (ack: (res: Ack<LobbyState[]>) => void) => void;
+  'lobby:maps': (ack: (res: Ack<Array<{ id: string; name: string; playerCounts: number[] }>>) => void) => void;
   'lobby:join': (
     payload: { lobbyId: string; playerName: string; playerId?: string },
     ack: (res: Ack<{ lobby: LobbyState; playerId: string }>) => void

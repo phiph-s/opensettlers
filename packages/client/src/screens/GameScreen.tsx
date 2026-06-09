@@ -18,6 +18,7 @@ import { DiceDisplay } from '../components/hud/DiceDisplay.js';
 import { ActivityLog } from '../components/panel/ActivityLog.js';
 import { StealDialog } from '../components/hud/StealDialog.js';
 import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
+import { OceanBackground } from '../components/board/OceanBackground.js';
 import type { GameOverSummary } from '@opensettlers/shared';
 import { socket } from '../socket.js';
 
@@ -56,12 +57,13 @@ export function GameScreen() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <OceanBackground />
       <TurnPhaseBar gameState={gameState} myPlayerId={myPlayerId} validMoves={validMoves} />
       <TurnTimerBar deadline={phaseDeadline} totalSeconds={totalSeconds} />
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#f2ede4' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'transparent' }}>
         {/* Board — position:relative so floating overlays can sit above it */}
-        <div style={{ flex: 1, overflow: 'hidden', padding: 8, position: 'relative', background: '#1a6b9a' }}>
+        <div style={{ flex: 1, overflow: 'hidden', padding: 8, position: 'relative', background: 'transparent' }}>
           <PanZoomBoard>
             <HexGrid gameState={gameState} myPlayerId={myPlayerId} validMoves={validMoves} buildMode={buildMode} onBuildModeChange={setBuildMode} />
           </PanZoomBoard>

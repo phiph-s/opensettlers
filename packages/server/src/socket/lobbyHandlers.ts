@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Server as IOServer, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 import { LobbyManager } from '../lobby/LobbyManager.js';
+import { getAvailableMaps } from '../maps/MapGenerator.js';
 
 type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
 type S = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -10,6 +11,15 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
   socket.on('lobby:list', (ack) => {
     const lobbies = manager.getAllLobbies().map((l) => l.toState());
     ack({ ok: true, data: lobbies });
+  });
+
+  socket.on('lobby:maps', (ack) => {
+    const maps = getAvailableMaps().map((m) => ({
+      id: m.id,
+      name: m.name,
+      playerCounts: m.playerCounts,
+    }));
+    ack({ ok: true, data: maps });
   });
 
   socket.on('lobby:create', (payload, ack) => {

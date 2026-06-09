@@ -19,7 +19,7 @@ import type {
 import type { Server as IOServer, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 
-import { buildBoard, STANDARD_MAP } from '../maps/MapGenerator.js';
+import { buildBoard, getMapById } from '../maps/MapGenerator.js';
 import { TurnTimer } from './TurnTimer.js';
 import {
   canAfford,
@@ -81,7 +81,7 @@ export class GameEngine {
     this.timer = new TurnTimer();
     this.devDeck = shuffleDeck(buildDeck(), Math.random);
 
-    const mapTemplate = STANDARD_MAP;
+    const mapTemplate = getMapById(settings.mapTemplateId);
     const board = buildBoard(mapTemplate, Math.random);
 
     const gamePlayers: Player[] = players.map((p, i) => ({

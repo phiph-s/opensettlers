@@ -6,6 +6,8 @@ import {
   vertexKey,
 } from '@opensettlers/shared';
 import { STANDARD_MAP } from './standard.map.js';
+import { LARGE_MAP } from './large.map.js';
+import { HUGE_MAP } from './huge.map.js';
 import type {
   CubeCoord,
   Edge,
@@ -215,8 +217,14 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
   return { hexes, vertices, edges };
 }
 
+const ALL_MAPS: MapTemplate[] = [STANDARD_MAP, LARGE_MAP, HUGE_MAP];
+
 export { STANDARD_MAP };
 
 export function getAvailableMaps(): MapTemplate[] {
-  return [STANDARD_MAP];
+  return ALL_MAPS;
+}
+
+export function getMapById(id: string): MapTemplate {
+  return ALL_MAPS.find((m) => m.id === id) ?? STANDARD_MAP;
 }
