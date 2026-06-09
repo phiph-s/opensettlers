@@ -7,6 +7,9 @@ import { usePlayerStore } from '../store/usePlayerStore.js';
 export function useSocket() {
   // Stable references — Zustand setters never change identity
   const setGameState = useGameStore((s) => s.setGameState);
+  const setGameSummary = useGameStore((s) => s.setGameSummary);
+  const setReadyCount = useGameStore((s) => s.setReadyCount);
+  const clearGame = useGameStore((s) => s.clearGame);
   const upsertLobby = useLobbyStore((s) => s.upsertLobby);
   const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
 
@@ -24,12 +27,17 @@ export function useSocket() {
     });
 
     socket.on('game:state', setGameState);
+    socket.on('game:over', setGameSummary);
+    socket.on('game:ready_count', ({ count, needed }) => setReadyCount(count, needed));
 
     socket.on('lobby:updated', (lobby) => {
       upsertLobby(lobby);
       const { myPlayerId } = usePlayerStore.getState();
       if (myPlayerId !== null && lobby.slots.some((s) => s.playerId === myPlayerId)) {
         setCurrentLobby(lobby);
+        if (lobby.status === 'waiting') {
+          clearGame();
+        }
       }
     });
 
@@ -40,6 +48,8 @@ export function useSocket() {
     return () => {
       socket.off('connect');
       socket.off('game:state');
+      socket.off('game:over');
+      socket.off('game:ready_count');
       socket.off('lobby:updated');
       socket.off('lobby:started');
       socket.disconnect();

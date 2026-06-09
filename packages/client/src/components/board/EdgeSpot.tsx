@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Edge } from '@opensettlers/shared';
 import type { Point } from '@opensettlers/shared';
+import '../hud/animations.css';
 
 interface Props {
   edge: Edge;
@@ -18,17 +19,21 @@ export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, playerColorMap
     const color = playerColorMap[edge.road.owner] ?? '#aaa';
     if (v1 && v2) {
       return (
-        <line
-          x1={v1.x} y1={v1.y}
-          x2={v2.x} y2={v2.y}
-          stroke={color}
-          strokeWidth={size * 0.1}
-          strokeLinecap="round"
-        />
+        <g key={edge.road.owner} className="road-drop-in">
+          <line
+            x1={v1.x} y1={v1.y}
+            x2={v2.x} y2={v2.y}
+            stroke={color}
+            strokeWidth={size * 0.1}
+            strokeLinecap="round"
+          />
+        </g>
       );
     }
     return (
-      <circle cx={midpoint.x} cy={midpoint.y} r={size * 0.08} fill={color} />
+      <g key={edge.road.owner} className="road-drop-in">
+        <circle cx={midpoint.x} cy={midpoint.y} r={size * 0.08} fill={color} />
+      </g>
     );
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameState } from '@opensettlers/shared';
 import { socket } from '../socket.js';
-import { playResourceGain, playYourTurn, playRobber } from '../sounds/soundEngine.js';
+import { playResourceGain, playYourTurn, playRobber, playPiecePlaced } from '../sounds/soundEngine.js';
 
 export function useSoundEffects(gameState: GameState | null, myPlayerId: string | null): void {
   const prevPhaseRef = useRef<string | null>(null);
@@ -16,6 +16,12 @@ export function useSoundEffects(gameState: GameState | null, myPlayerId: string 
     socket.on('game:resources_distributed', handler);
     return () => { socket.off('game:resources_distributed', handler); };
   }, [myPlayerId]);
+
+  // Piece placed sound
+  useEffect(() => {
+    socket.on('game:building_placed', playPiecePlaced);
+    return () => { socket.off('game:building_placed', playPiecePlaced); };
+  }, []);
 
   // Your turn + robber: watch state transitions
   useEffect(() => {

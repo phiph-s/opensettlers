@@ -14,6 +14,8 @@ export function DiscardPanel({ me, count }: Props) {
   const [selected, setSelected] = useState<Partial<Record<Resource, number>>>({});
 
   const total = Object.values(selected).reduce((s, n) => s + (n ?? 0), 0);
+  const remaining = count - total;
+  const ready = total === count;
 
   const adjust = (res: Resource, delta: number) => {
     setSelected((prev) => {
@@ -27,71 +29,120 @@ export function DiscardPanel({ me, count }: Props) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.7)',
+      background: 'rgba(0,0,0,0.45)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 50,
     }}>
       <div style={{
-        background: '#16213e',
-        border: '2px solid #e74c3c',
-        borderRadius: 12,
-        padding: 32,
-        minWidth: 320,
+        background: '#fffdf7',
+        border: '2px solid #c9bfae',
+        borderRadius: 14,
+        padding: '24px 28px',
+        minWidth: 300,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       }}>
-        <h3 style={{ marginBottom: 8 }}>Discard {count} cards (7 rolled)</h3>
-        <p style={{ color: '#aaa', fontSize: 12, marginBottom: 16 }}>
-          Selected: {total} / {count}
-        </p>
-        {RESOURCES.map((res) => (
-          <div key={res} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <div style={{
-              width: 36,
-              height: 46,
-              borderRadius: 6,
-              background: RESOURCE_COLORS[res],
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              flexShrink: 0,
-            }}>
-              <img src={RESOURCE_IMAGES[res]} style={{ width: 22, height: 22, objectFit: 'contain' }} alt={res} />
-              <span style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{me.hand[res] ?? 0}</span>
-            </div>
-            <button onClick={() => adjust(res, -1)} style={adjBtn}>−</button>
-            <span style={{ width: 24, textAlign: 'center', fontWeight: 'bold' }}>{selected[res] ?? 0}</span>
-            <button onClick={() => adjust(res, 1)} style={adjBtn}>+</button>
-          </div>
-        ))}
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#2c2516', marginBottom: 4 }}>
+          Discard {count} cards
+        </div>
+        <div style={{ fontSize: 12, color: '#7a6d5e', marginBottom: 18 }}>
+          A 7 was rolled — select {count} card{count !== 1 ? 's' : ''} to discard.{' '}
+          <span style={{ color: remaining > 0 ? '#b5550a' : '#27ae60', fontWeight: 600 }}>
+            {remaining > 0 ? `${remaining} left` : 'Ready ✓'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {RESOURCES.map((res) => {
+            const inHand = me.hand[res] ?? 0;
+            const sel = selected[res] ?? 0;
+            if (inHand === 0) return null;
+            return (
+              <div key={res} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Resource card */}
+                <div style={{
+                  width: 40,
+                  height: 52,
+                  borderRadius: 6,
+                  background: RESOURCE_COLORS[res],
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  flexShrink: 0,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                }}>
+                  <img src={RESOURCE_IMAGES[res]} style={{ width: 24, height: 24, objectFit: 'contain' }} alt={res} />
+                  <span style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{inHand}</span>
+                </div>
+
+                {/* Stepper */}
+                <button onClick={() => adjust(res, -1)} disabled={sel === 0} style={stepBtn(sel > 0)}>−</button>
+                <span style={{
+                  width: 28, textAlign: 'center',
+                  fontWeight: 700, fontSize: 15,
+                  color: sel > 0 ? '#6b4c11' : '#c0b49a',
+                }}>{sel}</span>
+                <button
+                  onClick={() => adjust(res, 1)}
+                  disabled={sel >= inHand || total >= count}
+                  style={stepBtn(sel < inHand && total < count)}
+                >+</button>
+
+                {/* Visual bar */}
+                {sel > 0 && (
+                  <div style={{ display: 'flex', gap: 3, marginLeft: 2 }}>
+                    {Array.from({ length: sel }).map((_, i) => (
+                      <div key={i} style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: RESOURCE_COLORS[res],
+                        opacity: 0.85,
+                      }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         <button
-          disabled={total !== count}
+          disabled={!ready}
           style={{
-            marginTop: 16,
-            background: total === count ? '#2ecc71' : '#555',
-            color: '#fff',
+            marginTop: 20,
+            width: '100%',
+            padding: '10px 0',
+            background: ready ? '#6b4c11' : '#d8cfc4',
+            color: ready ? '#fff' : '#a89880',
             border: 'none',
-            borderRadius: 6,
-            padding: '8px 24px',
-            cursor: total === count ? 'pointer' : 'not-allowed',
-            fontWeight: 'bold',
+            borderRadius: 8,
+            cursor: ready ? 'pointer' : 'not-allowed',
+            fontWeight: 700,
+            fontSize: 14,
+            transition: 'background 0.2s',
           }}
           onClick={() => socket.emit('game:discard', { resources: selected })}
         >
-          Discard
+          Discard {count} card{count !== 1 ? 's' : ''}
         </button>
       </div>
     </div>
   );
 }
 
-const adjBtn: React.CSSProperties = {
-  background: '#0f3460',
-  color: '#eee',
-  border: '1px solid #457b9d',
-  borderRadius: 4,
-  width: 24,
-  cursor: 'pointer',
-};
+function stepBtn(enabled: boolean): React.CSSProperties {
+  return {
+    width: 28, height: 28,
+    background: enabled ? '#f2ede4' : '#ece8e2',
+    color: enabled ? '#6b4c11' : '#c0b49a',
+    border: `1px solid ${enabled ? '#c9bfae' : '#e0dbd4'}`,
+    borderRadius: 6,
+    cursor: enabled ? 'pointer' : 'not-allowed',
+    fontWeight: 700,
+    fontSize: 15,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 0,
+  };
+}

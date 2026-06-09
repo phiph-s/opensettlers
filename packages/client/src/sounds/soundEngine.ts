@@ -28,10 +28,10 @@ function tone(
   osc.stop(t0 + duration + 0.05);
 }
 
-/** Pleasant two-note chime — played when you receive resources */
+/** Soft high chime — played when you receive resources */
 export function playResourceGain(): void {
-  tone(523, 0.18, 'sine', 0.22);          // C5
-  tone(659, 0.25, 'sine', 0.22, 0.14);    // E5
+  tone(1047, 0.14, 'sine', 0.06);          // C6 — quiet, airy
+  tone(1319, 0.18, 'sine', 0.05, 0.11);   // E6
 }
 
 /** Upward three-note fanfare — played when your turn starts */
@@ -39,6 +39,12 @@ export function playYourTurn(): void {
   tone(440, 0.1,  'sine', 0.18);           // A4
   tone(554, 0.1,  'sine', 0.18, 0.11);     // C#5
   tone(659, 0.22, 'sine', 0.22, 0.22);     // E5
+}
+
+/** Soft wooden thud — played when a road, settlement or city is placed */
+export function playPiecePlaced(): void {
+  tone(140, 0.07, 'sine', 0.13);
+  tone(280, 0.04, 'sine', 0.05, 0.015);
 }
 
 /** Low ominous pulse — played when a 7 is rolled */

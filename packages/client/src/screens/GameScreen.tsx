@@ -17,6 +17,7 @@ import { TradeDrawer } from '../components/trade/TradeDrawer.js';
 import { DiceDisplay } from '../components/hud/DiceDisplay.js';
 import { ActivityLog } from '../components/panel/ActivityLog.js';
 import { StealDialog } from '../components/hud/StealDialog.js';
+import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
 import type { GameOverSummary } from '@opensettlers/shared';
 import { socket } from '../socket.js';
 
@@ -138,6 +139,9 @@ export function GameScreen() {
       {gameSummary && (
         <VictoryBanner summary={gameSummary} players={players} myPlayerId={myPlayerId} />
       )}
+
+      {/* Resource / dev-card flying animation layer */}
+      <ResourceFlowLayer gameState={gameState} />
     </div>
   );
 }

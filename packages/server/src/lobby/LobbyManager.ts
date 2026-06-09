@@ -97,6 +97,15 @@ export class LobbyManager {
     return engine;
   }
 
+  returnToLobby(lobbyId: string, io: IO): void {
+    this.games.delete(lobbyId);
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) return;
+    lobby.status = 'waiting';
+    lobby.gameId = null;
+    io.to(lobbyId).emit('lobby:updated', lobby.toState());
+  }
+
   handleDisconnect(socketId: string, io: IO): void {
     const lobbies = this.getLobbiesForSocket(socketId);
     for (const lobby of lobbies) {

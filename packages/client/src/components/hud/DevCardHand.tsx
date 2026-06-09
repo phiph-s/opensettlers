@@ -69,16 +69,16 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
       bottom: '100%',
       left: 0,
       marginBottom: 8,
-      background: '#0f2040',
-      border: '1px solid #457b9d',
-      borderRadius: 8,
-      padding: 10,
+      background: '#fffdf7',
+      border: '1.5px solid #c9bfae',
+      borderRadius: 10,
+      padding: 12,
       zIndex: 100,
-      minWidth: 200,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+      minWidth: 210,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
     }}>
-      <div style={{ fontSize: 11, color: '#aaa', marginBottom: 8 }}>{title}</div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: '#7a6d5e', marginBottom: 10, fontWeight: 600 }}>{title}</div>
+      <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
         {RESOURCES.map((r) => {
           const selectedCount = picks.filter((x) => x === r).length;
           const isSelected = selectedCount > 0;
@@ -87,11 +87,11 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
               key={r}
               onClick={() => toggle(r)}
               style={{
-                width: 36,
-                height: 46,
-                borderRadius: 4,
-                background: isSelected ? RESOURCE_COLORS[r] : '#1a2a3a',
-                border: isSelected ? '2px solid #fff' : '1px solid #444',
+                width: 38,
+                height: 50,
+                borderRadius: 6,
+                background: isSelected ? RESOURCE_COLORS[r] : '#f2ede4',
+                border: isSelected ? `2px solid ${RESOURCE_COLORS[r]}` : '1.5px solid #c9bfae',
                 cursor: 'pointer',
                 padding: 0,
                 display: 'flex',
@@ -100,13 +100,15 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
                 justifyContent: 'center',
                 gap: 2,
                 position: 'relative',
+                boxShadow: isSelected ? `0 0 0 2px ${RESOURCE_COLORS[r]}44` : 'none',
+                transition: 'background 0.1s, box-shadow 0.1s',
               }}
             >
-              <img src={RESOURCE_IMAGES[r]} width={22} height={22} style={{ objectFit: 'contain' }} alt={r} />
+              <img src={RESOURCE_IMAGES[r]} width={24} height={24} style={{ objectFit: 'contain' }} alt={r} />
               {count === 2 && isSelected && (
                 <div style={{
                   position: 'absolute', top: -6, right: -6,
-                  background: '#fff', color: '#000',
+                  background: '#6b4c11', color: '#fff',
                   fontSize: 9, fontWeight: 'bold',
                   borderRadius: 8, padding: '1px 4px',
                 }}>{selectedCount}</div>
@@ -115,31 +117,34 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
           );
         })}
       </div>
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', gap: 6 }}>
         <button
           disabled={!ready}
           onClick={() => ready && onConfirm(picks)}
           style={{
             flex: 1,
-            background: ready ? '#2ecc71' : '#333',
-            color: ready ? '#fff' : '#666',
+            background: ready ? '#6b4c11' : '#d8cfc4',
+            color: ready ? '#fff' : '#a89880',
             border: 'none',
-            borderRadius: 4,
-            padding: '4px 8px',
+            borderRadius: 6,
+            padding: '6px 8px',
             fontSize: 12,
+            fontWeight: 700,
             cursor: ready ? 'pointer' : 'default',
+            transition: 'background 0.15s',
           }}
         >Play</button>
         <button
           onClick={onCancel}
           style={{
             flex: 1,
-            background: '#555',
-            color: '#eee',
-            border: 'none',
-            borderRadius: 4,
-            padding: '4px 8px',
+            background: '#f2ede4',
+            color: '#6b4c11',
+            border: '1.5px solid #c9bfae',
+            borderRadius: 6,
+            padding: '6px 8px',
             fontSize: 12,
+            fontWeight: 600,
             cursor: 'pointer',
           }}
         >Cancel</button>

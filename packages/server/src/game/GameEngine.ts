@@ -66,6 +66,7 @@ export class GameEngine {
   private timer: TurnTimer;
   private io: IO;
   private settings: LobbySettings;
+  private readyForNext = new Set<string>();
 
   constructor(
     lobbyId: string,
@@ -771,6 +772,18 @@ export class GameEngine {
     this.state.turnNumber++;
     this.advancePhase('PRE_ROLL');
     return null;
+  }
+
+  // ── Post-game ─────────────────────────────────────────────────────────────
+
+  handleReadyForNext(playerId: string, onReturn: () => void): void {
+    if (this.state.phase !== 'GAME_OVER') return;
+    this.readyForNext.add(playerId);
+    const total = this.state.players.length;
+    const needed = Math.ceil(total / 2);
+    const count = this.readyForNext.size;
+    this.io.to(this.lobbyId).emit('game:ready_count', { count, needed });
+    if (count >= needed) onReturn();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

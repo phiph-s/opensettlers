@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Vertex } from '@opensettlers/shared';
 import type { Point } from '@opensettlers/shared';
+import '../hud/animations.css';
 
 interface Props {
   vertex: Vertex;
@@ -124,9 +125,13 @@ export function VertexSpot({ vertex, position, isValid, size, myPlayerId, player
 
   if (building) {
     const color = playerColorMap[building.owner] ?? '#aaa';
-    return building.type === 'city'
-      ? <City cx={x} cy={y} color={color} s={s} />
-      : <Settlement cx={x} cy={y} color={color} s={s} />;
+    return (
+      <g key={`${building.type}-${building.owner}`} className="piece-drop-in">
+        {building.type === 'city'
+          ? <City cx={x} cy={y} color={color} s={s} />
+          : <Settlement cx={x} cy={y} color={color} s={s} />}
+      </g>
+    );
   }
 
   if (!isValid) return null;

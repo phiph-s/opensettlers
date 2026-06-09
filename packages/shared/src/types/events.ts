@@ -77,6 +77,7 @@ export interface ClientToServerEvents {
   'game:reject_trade': (payload: { offerId: string }) => void;
   'game:confirm_trade': (payload: { offerId: string; targetPlayerId: string }) => void;
   'game:cancel_trade': (payload: { offerId: string }) => void;
+  'game:ready_for_next': () => void;
 }
 
 export interface ServerToClientEvents {
@@ -134,5 +135,6 @@ export interface ServerToClientEvents {
   }) => void;
   'game:timer_warning': (payload: { secondsRemaining: number }) => void;
   'game:over': (summary: GameOverSummary) => void;
+  'game:ready_count': (payload: { count: number; needed: number }) => void;
   'game:error': (payload: { code: string; message: string }) => void;
 }

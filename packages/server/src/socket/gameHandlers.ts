@@ -128,4 +128,14 @@ export function registerGameHandlers(socket: S, io: IO, manager: LobbyManager): 
   socket.on('game:cancel_trade', ({ offerId }) => {
     handle(socket, manager, (e, pid) => e.cancelTrade(pid, offerId));
   });
+
+  socket.on('game:ready_for_next', () => {
+    const engine = getGame(socket, manager);
+    const playerId = getPlayerId(socket, manager);
+    if (!engine || !playerId) return;
+    engine.handleReadyForNext(playerId, () => {
+      const lobbyId = Array.from(socket.rooms).find((r) => manager.getLobby(r));
+      if (lobbyId) manager.returnToLobby(lobbyId, io);
+    });
+  });
 }
