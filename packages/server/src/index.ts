@@ -23,7 +23,7 @@ app.get('/health', (_req, res) => {
 if (isProd) {
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
   app.use(express.static(clientDist));
-  app.get('*', (_req, res) => {
+  app.use((_req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
