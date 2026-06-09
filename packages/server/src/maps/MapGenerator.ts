@@ -120,24 +120,47 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
     }
   }
 
+  // Direction vectors for the 6 cube-coordinate directions (used for geometric edge resolution)
+  const CUBE_DIRS = [
+    { q: 1, r: -1, s: 0 }, { q: 1, r: 0, s: -1 }, { q: 0, r: 1, s: -1 },
+    { q: -1, r: 1, s: 0 }, { q: -1, r: 0, s: 1 }, { q: 0, r: -1, s: 1 },
+  ];
+
   // Compute vertex-edge and vertex-vertex adjacency
   for (const edge of Object.values(edges)) {
-    // An edge's two vertices are the vertices shared by both hex pairs
     const hexPair = edge.adjacentHexKeys;
     if (hexPair.length < 2) continue;
-    // The edge connects the two vertices shared by the two hexes
-    // Find vertices that are adjacent to both hexes in the pair
-    const sharedVertices = Object.values(vertices).filter((v) => {
-      const hks = v.adjacentHexKeys;
-      return hexPair.every((hk) => hks.includes(hk));
-    });
-    if (sharedVertices.length >= 2) {
-      edge.adjacentVertexKeys = [sharedVertices[0]!.key, sharedVertices[1]!.key];
-      // Add this edge to each vertex's edge list
-      for (const sv of sharedVertices) {
-        if (!sv.adjacentEdgeKeys.includes(edge.key)) {
-          sv.adjacentEdgeKeys.push(edge.key);
+
+    // Fast path: both hexes are land — find shared vertices via adjacentHexKeys lookup
+    if (landHexKeys.has(hexPair[0]!) && landHexKeys.has(hexPair[1]!)) {
+      const sharedVertices = Object.values(vertices).filter((v) => {
+        const hks = v.adjacentHexKeys;
+        return hexPair.every((hk) => hks.includes(hk));
+      });
+      if (sharedVertices.length >= 2) {
+        edge.adjacentVertexKeys = [sharedVertices[0]!.key, sharedVertices[1]!.key];
+        for (const sv of sharedVertices) {
+          if (!sv.adjacentEdgeKeys.includes(edge.key)) {
+            sv.adjacentEdgeKeys.push(edge.key);
+          }
         }
+      }
+    } else {
+      // Coastline edge (one land hex, one non-existent sea hex).
+      // Compute the two connecting vertices geometrically using the direction between the hex pair.
+      const landHk = landHexKeys.has(hexPair[0]!) ? hexPair[0]! : hexPair[1]!;
+      const seaHk = landHk === hexPair[0]! ? hexPair[1]! : hexPair[0]!;
+      const landCoord = parseCubeKey(landHk);
+      const seaCoord = parseCubeKey(seaHk);
+      const diff = { q: seaCoord.q - landCoord.q, r: seaCoord.r - landCoord.r, s: seaCoord.s - landCoord.s };
+      const d = CUBE_DIRS.findIndex((dir) => dir.q === diff.q && dir.r === diff.r && dir.s === diff.s);
+      if (d === -1) continue;
+      const vk1 = vertexKey(landCoord, d);
+      const vk2 = vertexKey(landCoord, (d + 1) % 6);
+      if (vertices[vk1] && vertices[vk2]) {
+        edge.adjacentVertexKeys = [vk1, vk2];
+        if (!vertices[vk1]!.adjacentEdgeKeys.includes(edge.key)) vertices[vk1]!.adjacentEdgeKeys.push(edge.key);
+        if (!vertices[vk2]!.adjacentEdgeKeys.includes(edge.key)) vertices[vk2]!.adjacentEdgeKeys.push(edge.key);
       }
     }
   }
@@ -156,10 +179,6 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
   }
 
   // Assign ports to vertices using direct vertex key computation
-  const PORT_DIRS = [
-    {q:1,r:-1,s:0},{q:1,r:0,s:-1},{q:0,r:1,s:-1},
-    {q:-1,r:1,s:0},{q:-1,r:0,s:1},{q:0,r:-1,s:1}
-  ];
   for (const portDef of template.ports) {
     const [hkA, hkB] = portDef.edgeKey.split('|') as [string, string];
     const landHk = landHexKeys.has(hkA) ? hkA : hkB;
@@ -167,7 +186,7 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
     const landCoord = parseCubeKey(landHk);
     const seaCoord = parseCubeKey(seaHk);
     const diff = { q: seaCoord.q - landCoord.q, r: seaCoord.r - landCoord.r, s: seaCoord.s - landCoord.s };
-    const d = PORT_DIRS.findIndex((dir) => dir.q === diff.q && dir.r === diff.r && dir.s === diff.s);
+    const d = CUBE_DIRS.findIndex((dir) => dir.q === diff.q && dir.r === diff.r && dir.s === diff.s);
     if (d === -1) continue;
     const vk1 = vertexKey(landCoord, d);
     const vk2 = vertexKey(landCoord, (d + 1) % 6);
