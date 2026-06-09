@@ -1,15 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Player } from '@opensettlers/shared';
 import { socket } from '../../socket.js';
+import { RESOURCE_IMAGES } from '../../assets/resources.js';
 
 interface LogEntry {
   id: number;
   text: string;
   color?: string;
+  resources?: Partial<Record<string, number>>;
 }
 
 interface Props {
   players: Player[];
+}
+
+function InlineResources({ resources }: { resources: Partial<Record<string, number>> }) {
+  const entries = Object.entries(resources).filter(([, n]) => (n ?? 0) > 0);
+  if (entries.length === 0) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginLeft: 3, verticalAlign: 'middle' }}>
+      {entries.map(([res, n]) => {
+        const img = RESOURCE_IMAGES[res];
+        return (
+          <span key={res} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            {img && (
+              <img
+                src={img}
+                style={{ width: 11, height: 11, borderRadius: 2, display: 'inline-block', verticalAlign: 'middle' }}
+              />
+            )}
+            <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>×{n}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 export function ActivityLog({ players }: Props) {
@@ -20,9 +45,9 @@ export function ActivityLog({ players }: Props) {
   const getName = (id: string | null) =>
     id ? (players.find((p) => p.id === id)?.name ?? 'Someone') : 'Someone';
 
-  const addEntry = (text: string, color?: string) => {
+  const addEntry = (text: string, color?: string, resources?: Partial<Record<string, number>>) => {
     const id = ++counter.current;
-    setEntries((prev) => [...prev.slice(-19), { id, text, color }]);
+    setEntries((prev) => [...prev.slice(-19), { id, text, color, resources }]);
   };
 
   useEffect(() => {
@@ -34,7 +59,13 @@ export function ActivityLog({ players }: Props) {
     const onResourcesDistributed = (payload: { distributions: Record<string, Partial<Record<string, number>>> }) => {
       for (const [pid, dist] of Object.entries(payload.distributions)) {
         const total = Object.values(dist).reduce((s: number, n) => s + (n ?? 0), 0);
-        if (total > 0) addEntry(`${getName(pid)} received ${total} card${total !== 1 ? 's' : ''}`, '#166534');
+        if (total > 0) {
+          addEntry(
+            `${getName(pid)} received ${total} card${total !== 1 ? 's' : ''}:`,
+            '#166534',
+            dist,
+          );
+        }
       }
     };
 
@@ -50,12 +81,11 @@ export function ActivityLog({ players }: Props) {
     };
 
     const onStolen = (payload: { fromPlayerId: string; byPlayerId: string }) => {
-      addEntry(`${getName(payload.byPlayerId)} stole a card from ${getName(payload.fromPlayerId)}`, '#b91c1c');
+      addEntry(`${getName(payload.byPlayerId)} stole from ${getName(payload.fromPlayerId)}`, '#b91c1c');
     };
 
     const onDevCardPlayed = (payload: { cardType: string; playerId: string }) => {
-      const label = payload.cardType === 'victory_point' ? 'a dev card'
-        : payload.cardType === 'knight' ? 'a Knight'
+      const label = payload.cardType === 'knight' ? 'Knight'
         : payload.cardType === 'road_building' ? 'Road Building'
         : payload.cardType === 'year_of_plenty' ? 'Year of Plenty'
         : payload.cardType === 'monopoly' ? 'Monopoly'
@@ -99,7 +129,6 @@ export function ActivityLog({ players }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -128,8 +157,9 @@ export function ActivityLog({ players }: Props) {
           <div style={{ color: '#b0a898', fontSize: 11, padding: '4px 0' }}>No activity yet</div>
         )}
         {entries.map((e) => (
-          <div key={e.id} style={{ fontSize: 11, color: e.color ?? '#374151', padding: '2px 0', lineHeight: 1.4 }}>
+          <div key={e.id} style={{ fontSize: 11, color: e.color ?? '#374151', padding: '2px 0', lineHeight: 1.5 }}>
             {e.text}
+            {e.resources && <InlineResources resources={e.resources} />}
           </div>
         ))}
       </div>
