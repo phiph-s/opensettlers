@@ -11,7 +11,7 @@ import { PortMarker } from './PortMarker.js';
 import { socket } from '../../socket.js';
 
 const COLOR_HEX: Record<string, string> = {
-  red: '#e63946', blue: '#457b9d', orange: '#f4a261', white: '#f1faee',
+  red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#2c2c2c',
   green: '#2ecc71', purple: '#9b59b6',
 };
 

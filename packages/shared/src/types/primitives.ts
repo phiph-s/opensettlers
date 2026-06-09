@@ -26,7 +26,7 @@ export type TerrainType =
   | 'desert'
   | 'sea';
 
-export type PlayerColor = 'red' | 'blue' | 'orange' | 'white' | 'green' | 'purple';
+export type PlayerColor = 'red' | 'blue' | 'orange' | 'black' | 'green' | 'purple';
 
 export const TERRAIN_TO_RESOURCE: Record<Exclude<TerrainType, 'desert' | 'sea'>, Resource> = {
   forest: 'wood',

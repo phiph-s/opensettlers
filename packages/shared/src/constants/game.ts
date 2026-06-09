@@ -8,7 +8,7 @@ export const LARGEST_ARMY_MINIMUM = 3;
 export const LONGEST_ROAD_MINIMUM = 5;
 export const REJOIN_WINDOW_MS = 60_000;
 
-export const PLAYER_COLORS: PlayerColor[] = ['red', 'blue', 'orange', 'white', 'green', 'purple'];
+export const PLAYER_COLORS: PlayerColor[] = ['red', 'blue', 'orange', 'black', 'green', 'purple'];
 
 export const DEV_CARD_COUNTS: Record<DevCardType, number> = {
   knight: 14,
