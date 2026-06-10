@@ -194,7 +194,6 @@ export function LobbyRoomScreen() {
   const isMobile = useIsMobile();
   const th = makeTheme(dark);
   const [availableMaps, setAvailableMaps] = useState<MapMeta[]>([]);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     socket.emit('lobby:maps', (res) => {
@@ -406,13 +405,10 @@ export function LobbyRoomScreen() {
                   ) : filled ? (
                     <div style={{
                       width: 24, height: 24, borderRadius: '50%',
-                      background: slot.ready ? 'rgba(39,174,96,0.15)' : 'rgba(231,76,60,0.1)',
+                      background: slot.ready ? 'rgba(39,174,96,0.25)' : 'rgba(231,76,60,0.15)',
                       border: `1.5px solid ${slot.ready ? '#27ae60' : '#e74c3c'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12,
                       flexShrink: 0,
                     }}>
-                      {slot.ready ? '✓' : '○'}
                     </div>
                   ) : null}
                 </div>
@@ -504,99 +500,76 @@ export function LobbyRoomScreen() {
             </div>
           </div>
 
-          {/* Advanced settings */}
+          {/* Settings */}
           <div>
-            <button
-              onClick={() => setShowAdvanced((v) => !v)}
-              style={{
-                background: 'transparent',
-                color: th.advBtnColor(showAdvanced),
-                border: 'none', padding: '4px 0',
-                cursor: 'pointer',
-                fontSize: 10, letterSpacing: 4,
-                textTransform: 'uppercase',
-                fontFamily: "'Cinzel', Georgia, serif",
-                display: 'flex', alignItems: 'center', gap: 8,
-                transition: 'color 0.15s',
-              }}
-            >
-              <span style={{
-                display: 'inline-block',
-                transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0)',
-                transition: 'transform 0.15s',
-                fontSize: 10,
-              }}>▶</span>
-              Advanced Settings
-            </button>
-
-            {showAdvanced && (
-              <div style={{
-                marginTop: 16,
-                background: th.settingsBg,
-                border: th.settingsBorder,
-                borderRadius: 14,
-                padding: '22px 24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 20,
-              }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Bank Resources</div>
-                      <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
-                        Stock per resource type
-                      </div>
-                    </div>
-                    <div style={{
-                      fontSize: 24, fontWeight: 800, color: th.accent,
-                      fontFamily: "'Cinzel', Georgia, serif",
-                      minWidth: 36, textAlign: 'right',
-                    }}>
-                      {settings.bankResourceCount}
-                    </div>
+            <div style={{
+              fontSize: 10, letterSpacing: 4, color: th.accent,
+              textTransform: 'uppercase',
+              fontFamily: "'Cinzel', Georgia, serif",
+              marginBottom: 12,
+            }}>
+              Settings
+            </div>
+            <div style={{
+              background: th.settingsBg,
+              border: th.settingsBorder,
+              borderRadius: 14,
+              padding: '14px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Bank Resources
+                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>stock per type</span>
                   </div>
-                  <input
-                    type="range" min={10} max={30} step={1}
-                    value={settings.bankResourceCount}
-                    disabled={!isHost}
-                    onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
-                    style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 4 }}>
-                    <span>10</span><span>19 standard</span><span>30</span>
+                  <div style={{
+                    fontSize: 18, fontWeight: 800, color: th.accent,
+                    fontFamily: "'Cinzel', Georgia, serif",
+                    minWidth: 28, textAlign: 'right',
+                  }}>
+                    {settings.bankResourceCount}
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Balanced Dice</div>
-                    <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
-                      Flattens the bell curve — extreme rolls more likely
-                    </div>
-                  </div>
-                  <Toggle
-                    on={settings.balancedDice}
-                    onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { balancedDice: !settings.balancedDice } })}
-                    disabled={!isHost}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Friendly Robber</div>
-                    <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
-                      Robber can't target players with ≤ 3 VP
-                    </div>
-                  </div>
-                  <Toggle
-                    on={settings.friendlyRobber}
-                    onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { friendlyRobber: !settings.friendlyRobber } })}
-                    disabled={!isHost}
-                  />
+                <input
+                  type="range" min={10} max={30} step={1}
+                  value={settings.bankResourceCount}
+                  disabled={!isHost}
+                  onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
+                  style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 2 }}>
+                  <span>10</span><span>19 std</span><span>30</span>
                 </div>
               </div>
-            )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Balanced Dice
+                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>flatter bell curve</span>
+                  </div>
+                </div>
+                <Toggle
+                  on={settings.balancedDice}
+                  onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { balancedDice: !settings.balancedDice } })}
+                  disabled={!isHost}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Friendly Robber
+                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>can't target &le;3 VP</span>
+                  </div>
+                </div>
+                <Toggle
+                  on={settings.friendlyRobber}
+                  onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { friendlyRobber: !settings.friendlyRobber } })}
+                  disabled={!isHost}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
