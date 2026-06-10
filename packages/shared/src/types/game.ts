@@ -52,6 +52,7 @@ export interface GameState {
   pendingDiscards: Record<string, number>;
   robberCandidates: string[];
   lastPlacedSettlementKey: string | null;
+  bank: Record<import('./primitives.js').Resource, number>;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';
@@ -72,6 +73,7 @@ export interface LobbySlot {
   name: string | null;
   ready: boolean;
   color: import('./primitives.js').PlayerColor;
+  isBot?: boolean;
 }
 
 export interface LobbyState {

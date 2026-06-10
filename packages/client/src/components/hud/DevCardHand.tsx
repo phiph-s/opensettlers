@@ -9,6 +9,7 @@ interface Props {
   turnPhase: TurnPhase;
   isMyTurn: boolean;
   turnNumber: number;
+  bank?: Partial<Record<Resource, number>>;
 }
 
 interface CardDisplay {
@@ -43,9 +44,10 @@ interface ResourcePickerProps {
   count: 1 | 2;
   onConfirm: (resources: Resource[]) => void;
   onCancel: () => void;
+  bank?: Partial<Record<Resource, number>>;
 }
 
-function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerProps) {
+function ResourcePicker({ title, count, onConfirm, onCancel, bank }: ResourcePickerProps) {
   const [picks, setPicks] = useState<Resource[]>([]);
 
   const toggle = (r: Resource) => {
@@ -53,9 +55,11 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
       setPicks([r]);
       return;
     }
-    // count === 2
-    if (picks.includes(r)) {
-      setPicks(picks.filter((x) => x !== r));
+    // count === 2: allow duplicate picks, click again to deselect one
+    const selectedCount = picks.filter((x) => x === r).length;
+    if (selectedCount > 0) {
+      const idx = picks.lastIndexOf(r);
+      setPicks([...picks.slice(0, idx), ...picks.slice(idx + 1)]);
     } else if (picks.length < 2) {
       setPicks([...picks, r]);
     }
@@ -82,17 +86,20 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
         {RESOURCES.map((r) => {
           const selectedCount = picks.filter((x) => x === r).length;
           const isSelected = selectedCount > 0;
+          const bankCount = bank?.[r] ?? 19;
+          const unavailable = bankCount === 0;
           return (
             <button
               key={r}
-              onClick={() => toggle(r)}
+              onClick={() => !unavailable && toggle(r)}
+              disabled={unavailable && !isSelected}
               style={{
                 width: 38,
                 height: 50,
                 borderRadius: 6,
                 background: isSelected ? RESOURCE_COLORS[r] : 'var(--ui-input-bg)',
                 border: isSelected ? `2px solid ${RESOURCE_COLORS[r]}` : '1.5px solid var(--ui-card-border)',
-                cursor: 'pointer',
+                cursor: unavailable ? 'not-allowed' : 'pointer',
                 padding: 0,
                 display: 'flex',
                 flexDirection: 'column',
@@ -100,12 +107,13 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
                 justifyContent: 'center',
                 gap: 2,
                 position: 'relative',
+                opacity: unavailable ? 0.35 : 1,
                 boxShadow: isSelected ? `0 0 0 2px ${RESOURCE_COLORS[r]}44` : 'none',
                 transition: 'background 0.1s, box-shadow 0.1s',
               }}
             >
               <img src={RESOURCE_IMAGES[r]} width={24} height={24} style={{ objectFit: 'contain' }} alt={r} />
-              {count === 2 && isSelected && (
+              {isSelected && (
                 <div style={{
                   position: 'absolute', top: -6, right: -6,
                   background: '#6b4c11', color: '#fff',
@@ -158,9 +166,10 @@ interface CardStackProps {
   type: DevCardType;
   cards: DevCardInHand[];
   playable: boolean;
+  bank?: Partial<Record<Resource, number>>;
 }
 
-function CardStack({ type, cards, playable }: CardStackProps) {
+function CardStack({ type, cards, playable, bank }: CardStackProps) {
   const [popup, setPopup] = useState<'yop' | 'monopoly' | null>(null);
   const display = CARD_DISPLAY[type] ?? { label: type, icon: '?', bg: '#555', canPlay: false };
   const count = cards.length;
@@ -265,6 +274,7 @@ function CardStack({ type, cards, playable }: CardStackProps) {
         <ResourcePicker
           title="Year of Plenty — pick 2 resources"
           count={2}
+          bank={bank}
           onConfirm={(picks) => {
             socket.emit('game:play_year_of_plenty', { resource1: picks[0] as Resource, resource2: picks[1] as Resource });
             setPopup(null);
@@ -276,6 +286,7 @@ function CardStack({ type, cards, playable }: CardStackProps) {
         <ResourcePicker
           title="Monopoly — pick a resource"
           count={1}
+          bank={bank}
           onConfirm={(picks) => {
             socket.emit('game:play_monopoly', { resource: picks[0] as Resource });
             setPopup(null);
@@ -288,7 +299,7 @@ function CardStack({ type, cards, playable }: CardStackProps) {
 }
 
 // ---- Main DevCardHand ----
-export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber }: Props) {
+export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber, bank }: Props) {
   // Group cards by type
   const groups = new Map<DevCardType, DevCardInHand[]>();
   for (const card of devCards) {
@@ -313,7 +324,7 @@ export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber }: Props
           isPlayable(c.type, turnPhase, isMyTurn, turnNumber, c.turnDrawn)
         );
         return (
-          <CardStack key={type} type={type} cards={cards} playable={playable} />
+          <CardStack key={type} type={type} cards={cards} playable={playable} bank={bank} />
         );
       })}
     </div>

@@ -16,15 +16,20 @@ import { BuildPanel } from '../components/hud/BuildPanel.js';
 import { TradeDrawer } from '../components/trade/TradeDrawer.js';
 import { DiceDisplay } from '../components/hud/DiceDisplay.js';
 import { ActivityLog } from '../components/panel/ActivityLog.js';
+import { BankPanel } from '../components/panel/BankPanel.js';
 import { StealDialog } from '../components/hud/StealDialog.js';
 import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
 import { OceanBackground } from '../components/board/OceanBackground.js';
 import type { GameOverSummary } from '@opensettlers/shared';
+import { useLobbyStore } from '../store/useLobbyStore.js';
 import { socket } from '../socket.js';
 
 export function GameScreen() {
   const gameState = useGameStore((s) => s.gameState);
+  const clearGame = useGameStore((s) => s.clearGame);
   const { myPlayerId } = usePlayerStore();
+  const currentLobby = useLobbyStore((s) => s.currentLobby);
+  const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
   const validMoves = useValidMoves(gameState, myPlayerId);
   useSoundEffects(gameState, myPlayerId);
   const [gameSummary, setGameSummary] = useState<GameOverSummary | null>(null);
@@ -58,7 +63,22 @@ export function GameScreen() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <OceanBackground />
-      <TurnPhaseBar gameState={gameState} myPlayerId={myPlayerId} validMoves={validMoves} />
+      <TurnPhaseBar
+        gameState={gameState}
+        myPlayerId={myPlayerId}
+        validMoves={validMoves}
+        onLeave={() => {
+          if (currentLobby) {
+            socket.emit('game:leave', { lobbyId: currentLobby.id }, (res) => {
+              if (res.ok) {
+                clearGame();
+                setCurrentLobby(null);
+                usePlayerStore.getState().setLobbyId(null);
+              }
+            });
+          }
+        }}
+      />
       <TurnTimerBar deadline={phaseDeadline} totalSeconds={totalSeconds} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'transparent' }}>
@@ -99,6 +119,7 @@ export function GameScreen() {
           borderLeft: '1px solid var(--ui-border)',
         }}>
           <ActivityLog players={players} />
+          <BankPanel bank={gameState.bank} devCardDeckSize={gameState.devCardDeckSize} />
           {players.map((p) => (
             <PlayerPanel
               key={p.id}
@@ -122,6 +143,7 @@ export function GameScreen() {
             turnPhase={phase}
             isMyTurn={myPlayerId === activePlayer?.id}
             turnNumber={gameState.turnNumber}
+            bank={gameState.bank}
           />
         )}
         {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} />}

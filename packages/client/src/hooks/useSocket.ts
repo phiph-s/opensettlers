@@ -32,7 +32,9 @@ export function useSocket() {
 
     socket.on('lobby:updated', (lobby) => {
       upsertLobby(lobby);
-      const { myPlayerId } = usePlayerStore.getState();
+      const { myPlayerId, currentLobbyId } = usePlayerStore.getState();
+      // Ignore lobby updates if we've already left (currentLobbyId cleared on leave)
+      if (!currentLobbyId) return;
       if (myPlayerId !== null && lobby.slots.some((s) => s.playerId === myPlayerId)) {
         setCurrentLobby(lobby);
         if (lobby.status === 'waiting') {

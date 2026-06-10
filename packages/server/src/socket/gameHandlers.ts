@@ -129,6 +129,17 @@ export function registerGameHandlers(socket: S, io: IO, manager: LobbyManager): 
     handle(socket, manager, (e, pid) => e.cancelTrade(pid, offerId));
   });
 
+  socket.on('game:leave', ({ lobbyId }, ack) => {
+    const lobby = manager.getLobby(lobbyId);
+    const playerId = lobby?.socketToPlayer.get(socket.id);
+    const err = manager.handleLeaveGame(socket.id, lobbyId, io);
+    if (err) { ack({ ok: false, code: 'LEAVE_FAILED', message: err }); return; }
+    // Remove from all rooms first so no further game:state events reach this socket
+    void socket.leave(lobbyId);
+    if (playerId) void socket.leave(playerId);
+    ack({ ok: true, data: undefined });
+  });
+
   socket.on('game:ready_for_next', () => {
     const engine = getGame(socket, manager);
     const playerId = getPlayerId(socket, manager);

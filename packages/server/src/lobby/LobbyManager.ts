@@ -94,6 +94,12 @@ export class LobbyManager {
     lobby.status = 'in_game';
     lobby.gameId = engine.gameId;
     this.games.set(lobbyId, engine);
+
+    // Activate bots for any bot slots
+    for (const botId of lobby.getBotIds()) {
+      engine.addBot(botId);
+    }
+
     return engine;
   }
 
@@ -113,16 +119,13 @@ export class LobbyManager {
       if (!playerId) continue;
 
       lobby.socketToPlayer.delete(socketId);
-      // Don't remove the slot — start a rejoin timer
 
       const game = this.games.get(lobby.id);
       if (game) {
         game.setPlayerConnected(playerId, false);
-        lobby.startRejoinTimer(playerId, () => {
-          // Rejoin window expired — remove from lobby
-          lobby.removePlayer(playerId);
-          io.to(lobby.id).emit('lobby:updated', lobby.toState());
-        });
+        // Bot takes over — no rejoin timer, player can return any time
+        game.addBot(playerId);
+        io.to(lobby.id).emit('lobby:updated', lobby.toState());
       } else {
         // In waiting lobby — remove immediately
         lobby.removePlayer(playerId);
@@ -145,13 +148,39 @@ export class LobbyManager {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby) return 'Lobby not found';
 
+    // Permanently left players cannot rejoin
+    if (lobby.permanentlyLeft.has(playerId)) return 'You have left this game';
+
     const reconnected = lobby.reconnectPlayer(playerId, socketId);
     if (!reconnected) return 'Player not found in lobby';
 
     const game = this.games.get(lobbyId);
     if (!game) return 'No active game';
 
+    // Remove bot that was covering for this player
+    game.removeBot(playerId);
     game.setPlayerConnected(playerId, true);
     return game;
+  }
+
+  handleLeaveGame(socketId: string, lobbyId: string, io: IO): string | null {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) return 'Lobby not found';
+
+    const playerId = lobby.socketToPlayer.get(socketId);
+    if (!playerId) return 'Not in this lobby';
+
+    lobby.socketToPlayer.delete(socketId);
+    lobby.playerToSocket.delete(playerId);
+    lobby.permanentlyLeft.add(playerId);
+
+    const game = this.games.get(lobbyId);
+    if (game) {
+      game.setPlayerConnected(playerId, false);
+      game.addBot(playerId);
+    }
+
+    io.to(lobbyId).emit('lobby:updated', lobby.toState());
+    return null;
   }
 }

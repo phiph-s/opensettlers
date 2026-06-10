@@ -20,6 +20,7 @@ import type { Server as IOServer, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 
 import { buildBoard, getMapById } from '../maps/MapGenerator.js';
+import { BotController } from './BotController.js';
 import { TurnTimer } from './TurnTimer.js';
 import {
   canAfford,
@@ -67,6 +68,7 @@ export class GameEngine {
   private io: IO;
   private settings: LobbySettings;
   private readyForNext = new Set<string>();
+  private bots = new Map<string, BotController>();
 
   constructor(
     lobbyId: string,
@@ -98,6 +100,7 @@ export class GameEngine {
       hasLongestRoad: false,
       hasLargestArmy: false,
       isConnected: true,
+      isBot: false,
       victoryPoints: 0,
     }));
 
@@ -126,6 +129,7 @@ export class GameEngine {
       pendingDiscards: {},
       robberCandidates: [],
       lastPlacedSettlementKey: null,
+      bank: { wood: 19, brick: 19, wheat: 19, sheep: 19, ore: 19 },
     };
   }
 
@@ -150,12 +154,45 @@ export class GameEngine {
     for (const player of this.state.players) {
       this.io.to(player.id).emit('game:state', this.sanitizeFor(player.id));
     }
+    for (const bot of this.bots.values()) {
+      bot.onStateChange();
+    }
   }
 
   setPlayerConnected(playerId: string, connected: boolean): void {
     const player = this.state.players.find((p) => p.id === playerId);
     if (player) player.isConnected = connected;
     this.broadcastState();
+  }
+
+  private returnCostToBank(cost: Partial<Record<Resource, number>>): void {
+    for (const [res, amt] of Object.entries(cost) as [Resource, number][]) {
+      this.state.bank[res] = (this.state.bank[res] ?? 0) + amt;
+    }
+  }
+
+  addBot(playerId: string): void {
+    if (this.bots.has(playerId)) return;
+    const player = this.state.players.find((p) => p.id === playerId);
+    if (player) player.isBot = true;
+    const bot = new BotController(this, playerId);
+    this.bots.set(playerId, bot);
+    bot.start();
+    this.broadcastState();
+  }
+
+  removeBot(playerId: string): void {
+    const bot = this.bots.get(playerId);
+    if (bot) {
+      bot.stop();
+      this.bots.delete(playerId);
+      const player = this.state.players.find((p) => p.id === playerId);
+      if (player) player.isBot = false;
+    }
+  }
+
+  hasBot(playerId: string): boolean {
+    return this.bots.has(playerId);
   }
 
   private advancePhase(phase: TurnPhase): void {
@@ -246,7 +283,10 @@ export class GameEngine {
         const hex = this.state.board.hexes[hk];
         if (!hex || hex.terrain === 'sea' || hex.terrain === 'desert') continue;
         const resource = ({ forest: 'wood', hills: 'brick', fields: 'wheat', pasture: 'sheep', mountains: 'ore' } as Record<string, Resource>)[hex.terrain];
-        if (resource) player.hand[resource]++;
+        if (resource) {
+          player.hand[resource]++;
+          this.state.bank[resource] = Math.max(0, (this.state.bank[resource] ?? 0) - 1);
+        }
       }
     }
 
@@ -318,7 +358,7 @@ export class GameEngine {
         this.advancePhase('ROBBER_PLACEMENT');
       }
     } else {
-      const distributions = distributeResources(this.state.board, this.state.players, roll);
+      const distributions = distributeResources(this.state.board, this.state.players, roll, this.state.bank);
       this.io.to(this.lobbyId).emit('game:resources_distributed', { distributions });
       this.advancePhase('BUILD_PHASE');
     }
@@ -343,6 +383,7 @@ export class GameEngine {
 
     for (const [res, amt] of Object.entries(resources) as [Resource, number][]) {
       player.hand[res] = (player.hand[res] ?? 0) - amt;
+      this.state.bank[res] = (this.state.bank[res] ?? 0) + amt;
     }
 
     delete this.state.pendingDiscards[playerId];
@@ -429,6 +470,7 @@ export class GameEngine {
     if (this.state.phase === 'BUILD_PHASE') {
       if (!canAfford(player, BUILDING_COSTS.road)) return 'Cannot afford road';
       deductCost(player, BUILDING_COSTS.road);
+      this.returnCostToBank(BUILDING_COSTS.road);
     }
     // DEV_ROAD_BUILDING: free
 
@@ -462,6 +504,7 @@ export class GameEngine {
     if (!canAfford(player, BUILDING_COSTS.settlement)) return 'Cannot afford settlement';
 
     deductCost(player, BUILDING_COSTS.settlement);
+    this.returnCostToBank(BUILDING_COSTS.settlement);
     this.state.board.vertices[vk]!.building = { type: 'settlement', owner: playerId };
     player.settlementsLeft--;
 
@@ -484,6 +527,7 @@ export class GameEngine {
     if (!canAfford(player, BUILDING_COSTS.city)) return 'Cannot afford city';
 
     deductCost(player, BUILDING_COSTS.city);
+    this.returnCostToBank(BUILDING_COSTS.city);
     this.state.board.vertices[vk]!.building = { type: 'city', owner: playerId };
     player.citiesLeft--;
     player.settlementsLeft++;
@@ -508,6 +552,7 @@ export class GameEngine {
     if (!canAfford(player, BUILDING_COSTS.dev_card)) return 'Cannot afford dev card';
 
     deductCost(player, BUILDING_COSTS.dev_card);
+    this.returnCostToBank(BUILDING_COSTS.dev_card);
     const card = this.devDeck.pop()!;
     this.state.devCardDeckSize = this.devDeck.length;
     player.devCards.push({ type: card, turnDrawn: this.state.turnNumber });
@@ -575,6 +620,8 @@ export class GameEngine {
     removeDevCard(player, 'year_of_plenty', this.state.turnNumber);
     player.hand[r1] = (player.hand[r1] ?? 0) + 1;
     player.hand[r2] = (player.hand[r2] ?? 0) + 1;
+    this.state.bank[r1] = Math.max(0, (this.state.bank[r1] ?? 0) - 1);
+    this.state.bank[r2] = Math.max(0, (this.state.bank[r2] ?? 0) - 1);
 
     this.io.to(this.lobbyId).emit('game:dev_card_played', {
       cardType: 'year_of_plenty',
@@ -630,9 +677,11 @@ export class GameEngine {
 
     for (const [res, amt] of Object.entries(giving) as [Resource, number][]) {
       player.hand[res] = (player.hand[res] ?? 0) - amt;
+      this.state.bank[res] = (this.state.bank[res] ?? 0) + amt;
     }
     for (const [res, amt] of Object.entries(receiving) as [Resource, number][]) {
       player.hand[res] = (player.hand[res] ?? 0) + amt;
+      this.state.bank[res] = Math.max(0, (this.state.bank[res] ?? 0) - amt);
     }
 
     this.updateVP();

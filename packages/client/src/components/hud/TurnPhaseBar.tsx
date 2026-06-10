@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { GameState } from '@opensettlers/shared';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { useThemeStore } from '../../store/useThemeStore.js';
+import { socket } from '../../socket.js';
 
 const PHASE_LABELS: Partial<Record<string, string>> = {
   SETUP_PLACE_SETTLEMENT: 'Place Settlement',
@@ -23,15 +24,17 @@ interface Props {
   gameState: GameState;
   myPlayerId: string | null;
   validMoves: ValidMoves;
+  onLeave: () => void;
 }
 
-export function TurnPhaseBar({ gameState, myPlayerId, validMoves }: Props) {
+export function TurnPhaseBar({ gameState, myPlayerId, validMoves, onLeave }: Props) {
   const { phase, players, activePlayerIndex, diceRoll } = gameState;
   const activePlayer = players[activePlayerIndex];
   const isMe = activePlayer?.id === myPlayerId;
   const pendingCount = myPlayerId ? (gameState.pendingDiscards[myPlayerId] ?? 0) : 0;
 
   const { dark, toggle } = useThemeStore();
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   return (
     <div style={{
@@ -79,6 +82,74 @@ export function TurnPhaseBar({ gameState, myPlayerId, validMoves }: Props) {
       >
         {dark ? '☀️' : '🌙'}
       </button>
+
+      {/* Leave button */}
+      <button
+        onClick={() => setShowLeaveConfirm(true)}
+        title="Leave game (bot takes over)"
+        style={{
+          background: 'rgba(180,30,30,0.25)',
+          border: '1px solid rgba(200,60,60,0.45)',
+          borderRadius: 6,
+          padding: '3px 10px',
+          cursor: 'pointer',
+          fontSize: 12,
+          fontWeight: 600,
+          color: '#ffaaaa',
+          flexShrink: 0,
+        }}
+      >
+        Leave
+      </button>
+
+      {/* Leave confirmation overlay */}
+      {showLeaveConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 200,
+        }}>
+          <div style={{
+            background: 'var(--ui-card-bg)',
+            border: '1px solid var(--ui-card-border)',
+            borderRadius: 12,
+            padding: '24px 28px',
+            maxWidth: 340,
+            textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ui-text)', marginBottom: 8 }}>
+              Leave game?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ui-text-muted)', marginBottom: 20 }}>
+              A bot will take over your turn permanently. You won't be able to rejoin.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                style={{
+                  background: 'var(--ui-btn-muted)', color: 'var(--ui-btn-muted-text)',
+                  border: '1px solid var(--ui-border)', borderRadius: 7,
+                  padding: '8px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onLeave}
+                style={{
+                  background: '#b91c1c', color: '#fff',
+                  border: 'none', borderRadius: 7,
+                  padding: '8px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

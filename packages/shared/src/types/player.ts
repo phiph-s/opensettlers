@@ -21,5 +21,6 @@ export interface Player {
   hasLongestRoad: boolean;
   hasLargestArmy: boolean;
   isConnected: boolean;
+  isBot: boolean;
   victoryPoints: number;
 }

@@ -26,6 +26,8 @@ export interface ClientToServerEvents {
   'lobby:ready': (payload: { lobbyId: string; ready: boolean }) => void;
   'lobby:settings': (payload: { lobbyId: string; settings: Partial<LobbySettings> }) => void;
   'lobby:start': (payload: { lobbyId: string }, ack: (res: Ack<void>) => void) => void;
+  'lobby:add_bot': (payload: { lobbyId: string }, ack: (res: Ack<{ lobby: LobbyState }>) => void) => void;
+  'lobby:remove_bot': (payload: { lobbyId: string; playerId: string }, ack: (res: Ack<{ lobby: LobbyState }>) => void) => void;
   'lobby:join_by_code': (
     payload: { code: string; playerName: string },
     ack: (res: Ack<{ lobby: LobbyState; playerId: string }>) => void
@@ -79,6 +81,7 @@ export interface ClientToServerEvents {
   'game:confirm_trade': (payload: { offerId: string; targetPlayerId: string }) => void;
   'game:cancel_trade': (payload: { offerId: string }) => void;
   'game:ready_for_next': () => void;
+  'game:leave': (payload: { lobbyId: string }, ack: (res: Ack<void>) => void) => void;
 }
 
 export interface ServerToClientEvents {

@@ -111,7 +111,7 @@ export function LobbyRoomScreen() {
         </div>
 
         {/* Player slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
           {slots.map((slot, i) => {
             const slotColor = slot.color ? (COLOR_MAP[slot.color] ?? '#aaa') : '#333';
             return (
@@ -119,7 +119,7 @@ export function LobbyRoomScreen() {
                 key={i}
                 style={{
                   background: '#16213e',
-                  border: `1px solid ${slot.playerId ? '#2a4a7a' : '#1e2e4a'}`,
+                  border: `1px solid ${slot.playerId ? (slot.isBot ? '#3a3060' : '#2a4a7a') : '#1e2e4a'}`,
                   borderRadius: 8,
                   padding: '10px 14px',
                   display: 'flex',
@@ -133,20 +133,47 @@ export function LobbyRoomScreen() {
                   border: '1.5px solid rgba(255,255,255,0.25)',
                   flexShrink: 0,
                 }} />
-                <span style={{ flex: 1, color: slot.playerId ? '#d0dff5' : '#3a4a6a', fontSize: 13 }}>
-                  {slot.playerId ? (slot.name ?? 'Unknown') : <em>Empty</em>}
+                <span style={{ flex: 1, color: slot.playerId ? (slot.isBot ? '#9a80c0' : '#d0dff5') : '#3a4a6a', fontSize: 13 }}>
+                  {slot.playerId
+                    ? <>{slot.isBot ? '🤖 ' : ''}{slot.name ?? 'Unknown'}</>
+                    : <em>Empty</em>}
                   {slot.playerId === myPlayerId && <span style={{ color: '#7a90b0', fontSize: 11 }}> (you)</span>}
-                  {slot.playerId === hostPlayerId && ' 👑'}
+                  {slot.playerId === hostPlayerId && !slot.isBot && ' 👑'}
                 </span>
-                {slot.playerId && (
+                {slot.isBot && isHost ? (
+                  <button
+                    onClick={() => socket.emit('lobby:remove_bot', { lobbyId: id, playerId: slot.playerId! }, () => {})}
+                    style={{
+                      background: 'transparent', color: '#6a5a8a', border: '1px solid #3a3060',
+                      borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11,
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : slot.playerId ? (
                   <span style={{ color: slot.ready ? '#2ecc71' : '#e74c3c', fontSize: 12, fontWeight: 600 }}>
                     {slot.ready ? '✓' : '○'}
                   </span>
-                )}
+                ) : null}
               </div>
             );
           })}
         </div>
+
+        {/* Add Bot button (host only, while slots available) */}
+        {isHost && slots.some((s) => !s.playerId) && (
+          <button
+            onClick={() => socket.emit('lobby:add_bot', { lobbyId: id }, () => {})}
+            style={{
+              background: '#1a1a3a', color: '#9a80c0',
+              border: '1px dashed #3a3060', borderRadius: 8,
+              padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+              marginBottom: 16, width: '100%', textAlign: 'left',
+            }}
+          >
+            + Add Bot
+          </button>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 10 }}>

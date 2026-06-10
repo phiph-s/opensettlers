@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+let botCounter = 0;
 import type { Server as IOServer, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 import { LobbyManager } from '../lobby/LobbyManager.js';
@@ -123,6 +124,33 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
     for (const player of engine.getState().players) {
       io.to(player.id).emit('game:state', engine.sanitizeFor(player.id));
     }
+  });
+
+  socket.on('lobby:add_bot', (payload, ack) => {
+    const lobby = manager.getLobby(payload.lobbyId);
+    if (!lobby) { ack({ ok: false, code: 'NOT_FOUND', message: 'Lobby not found' }); return; }
+    if (lobby.status !== 'waiting') { ack({ ok: false, code: 'GAME_STARTED', message: 'Game already started' }); return; }
+    const hostId = lobby.socketToPlayer.get(socket.id);
+    if (lobby.hostPlayerId !== hostId) { ack({ ok: false, code: 'NOT_HOST', message: 'Only the host can add bots' }); return; }
+    if (lobby.isFull()) { ack({ ok: false, code: 'FULL', message: 'Lobby is full' }); return; }
+    const botId = uuidv4();
+    const botName = `Bot ${++botCounter}`;
+    const seat = lobby.addBot(botId, botName);
+    if (seat === null) { ack({ ok: false, code: 'FULL', message: 'No empty slots' }); return; }
+    io.to(payload.lobbyId).emit('lobby:updated', lobby.toState());
+    ack({ ok: true, data: { lobby: lobby.toState() } });
+  });
+
+  socket.on('lobby:remove_bot', (payload, ack) => {
+    const lobby = manager.getLobby(payload.lobbyId);
+    if (!lobby) { ack({ ok: false, code: 'NOT_FOUND', message: 'Lobby not found' }); return; }
+    if (lobby.status !== 'waiting') { ack({ ok: false, code: 'GAME_STARTED', message: 'Game already started' }); return; }
+    const hostId = lobby.socketToPlayer.get(socket.id);
+    if (lobby.hostPlayerId !== hostId) { ack({ ok: false, code: 'NOT_HOST', message: 'Only the host can remove bots' }); return; }
+    const removed = lobby.removeBot(payload.playerId);
+    if (!removed) { ack({ ok: false, code: 'NOT_FOUND', message: 'Bot not found' }); return; }
+    io.to(payload.lobbyId).emit('lobby:updated', lobby.toState());
+    ack({ ok: true, data: { lobby: lobby.toState() } });
   });
 
   socket.on('game:rejoin', (payload, ack) => {

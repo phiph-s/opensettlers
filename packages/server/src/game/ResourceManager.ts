@@ -23,13 +23,15 @@ export function handTotal(player: Player): number {
 export function distributeResources(
   board: GameBoard,
   players: Player[],
-  roll: number
+  roll: number,
+  bank: Record<Resource, number>
 ): Record<string, Partial<Record<Resource, number>>> {
-  const distributions: Record<string, Partial<Record<Resource, number>>> = {};
+  // First pass: calculate total demand per resource
+  const demand: Partial<Record<Resource, number>> = {};
+  const rawDist: Record<string, Partial<Record<Resource, number>>> = {};
 
   for (const hex of Object.values(board.hexes)) {
-    if (hex.hasRobber) continue;
-    if (hex.numberToken !== roll) continue;
+    if (hex.hasRobber || hex.numberToken !== roll) continue;
     const resource = (TERRAIN_TO_RESOURCE as Record<string, Resource | undefined>)[hex.terrain];
     if (!resource) continue;
 
@@ -38,15 +40,32 @@ export function distributeResources(
       if (!vertex?.building) continue;
       const amount = vertex.building.type === 'city' ? 2 : 1;
       const pid = vertex.building.owner;
-      if (!distributions[pid]) distributions[pid] = {};
-      distributions[pid]![resource] = (distributions[pid]![resource] ?? 0) + amount;
+      demand[resource] = (demand[resource] ?? 0) + amount;
+      if (!rawDist[pid]) rawDist[pid] = {};
+      rawDist[pid]![resource] = (rawDist[pid]![resource] ?? 0) + amount;
     }
   }
 
-  // Actually grant the resources
+  // Second pass: official rule — if total demand exceeds bank supply, nobody gets that resource
+  const distributions: Record<string, Partial<Record<Resource, number>>> = {};
+  for (const [pid, dist] of Object.entries(rawDist)) {
+    const filtered: Partial<Record<Resource, number>> = {};
+    for (const [res, amt] of Object.entries(dist) as [Resource, number][]) {
+      if ((demand[res] ?? 0) <= (bank[res] ?? 0)) {
+        filtered[res] = amt;
+      }
+    }
+    if (Object.keys(filtered).length > 0) distributions[pid] = filtered;
+  }
+
+  // Grant resources and deduct from bank
   for (const player of players) {
     const dist = distributions[player.id];
-    if (dist) grantResources(player, dist);
+    if (!dist) continue;
+    grantResources(player, dist);
+    for (const [res, amt] of Object.entries(dist) as [Resource, number][]) {
+      bank[res] = (bank[res] ?? 0) - amt;
+    }
   }
 
   return distributions;

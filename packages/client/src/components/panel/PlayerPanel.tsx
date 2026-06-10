@@ -161,6 +161,7 @@ export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, l
             flex: 1, fontWeight: 700, fontSize: 12, color: 'var(--ui-text)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
+            {player.isBot && <span style={{ fontSize: 10, marginRight: 3, opacity: 0.75 }}>🤖</span>}
             {player.name}
             {isMe && <span style={{ fontWeight: 400, color: 'var(--ui-text-faint)', fontSize: 10 }}> (you)</span>}
           </span>

@@ -18,7 +18,9 @@ export class Lobby {
   socketToPlayer = new Map<string, string>();
   /** playerId -> socketId (current, may be stale on disconnect) */
   playerToSocket = new Map<string, string>();
-  /** playerId -> rejoin timeout handle */
+  /** Players who voluntarily left — cannot rejoin */
+  permanentlyLeft = new Set<string>();
+  /** playerId -> rejoin timeout handle (kept for waiting-lobby cleanup only) */
   private rejoinTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(id: string, settings: Partial<LobbySettings>) {
@@ -47,10 +49,36 @@ export class Lobby {
     this.slots[emptySlot]!.playerId = playerId;
     this.slots[emptySlot]!.name = name;
     this.slots[emptySlot]!.ready = false;
+    this.slots[emptySlot]!.isBot = false;
     this.socketToPlayer.set(socketId, playerId);
     this.playerToSocket.set(playerId, socketId);
     if (!this.hostPlayerId) this.hostPlayerId = playerId;
     return emptySlot;
+  }
+
+  addBot(botId: string, botName: string): number | null {
+    const emptySlot = this.slots.findIndex((s) => s.playerId === null);
+    if (emptySlot === -1) return null;
+
+    this.slots[emptySlot]!.playerId = botId;
+    this.slots[emptySlot]!.name = botName;
+    this.slots[emptySlot]!.ready = true;
+    this.slots[emptySlot]!.isBot = true;
+    return emptySlot;
+  }
+
+  removeBot(playerId: string): boolean {
+    const slot = this.slots.find((s) => s.playerId === playerId && s.isBot);
+    if (!slot) return false;
+    slot.playerId = null;
+    slot.name = null;
+    slot.ready = false;
+    slot.isBot = false;
+    return true;
+  }
+
+  getBotIds(): string[] {
+    return this.slots.filter((s) => s.isBot && s.playerId).map((s) => s.playerId!);
   }
 
   removePlayer(playerId: string): void {
