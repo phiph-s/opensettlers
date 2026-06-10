@@ -12,6 +12,7 @@ const TERRAIN_COLORS: Record<TerrainType, string> = {
   mountains: '#8a8a8a',
   desert: '#d9c07a',
   sea: '#1a5a8a',
+  clouds: '#c0d8f4',
 };
 
 const TERRAIN_PATTERN: Partial<Record<TerrainType, string>> = {
@@ -21,6 +22,7 @@ const TERRAIN_PATTERN: Partial<Record<TerrainType, string>> = {
   pasture: 'url(#pat-pasture)',
   mountains: 'url(#pat-mountains)',
   desert: 'url(#pat-desert)',
+  clouds: 'url(#pat-clouds)',
 };
 
 interface Props {

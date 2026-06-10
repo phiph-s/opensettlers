@@ -3,13 +3,16 @@ import { socket } from '../socket.js';
 import { useLobbyStore } from '../store/useLobbyStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
 import { useThemeStore } from '../store/useThemeStore.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
+import { MapPreview } from '../components/lobby/MapPreview.js';
 
 const COLOR_CSS: Record<string, string> = {
   red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#8a8a9a',
-  green: '#2ecc71', purple: '#9b59b6',
+  green: '#2ecc71', purple: '#9b59b6', yellow: '#e8c730', pink: '#e91e8c',
 };
 
-interface MapMeta { id: string; name: string; playerCounts: number[] }
+interface PreviewHex { q: number; r: number; terrain?: string }
+interface MapMeta { id: string; name: string; playerCounts: number[]; hexCount?: number; previewHexes?: PreviewHex[] }
 
 function makeTheme(dark: boolean) {
   if (dark) return {
@@ -188,6 +191,7 @@ export function LobbyRoomScreen() {
   const { currentLobby } = useLobbyStore();
   const { myPlayerId } = usePlayerStore();
   const { dark, toggle } = useThemeStore();
+  const isMobile = useIsMobile();
   const th = makeTheme(dark);
   const [availableMaps, setAvailableMaps] = useState<MapMeta[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -215,7 +219,7 @@ export function LobbyRoomScreen() {
       flexDirection: 'column',
       fontFamily: "'Crimson Pro', Georgia, serif",
       color: th.text,
-      overflow: 'hidden',
+      overflow: isMobile ? 'auto' : 'hidden',
     }}>
       {/* Ambient glow */}
       <div style={{
@@ -226,7 +230,7 @@ export function LobbyRoomScreen() {
       {/* ── HEADER ── */}
       <div style={{
         borderBottom: th.headerBorder,
-        padding: '20px 44px',
+        padding: isMobile ? '14px 20px' : '20px 44px',
         display: 'flex',
         alignItems: 'center',
         gap: 20,
@@ -305,17 +309,19 @@ export function LobbyRoomScreen() {
       <div style={{
         flex: 1,
         display: 'flex',
-        overflow: 'hidden',
+        flexDirection: isMobile ? 'column' : 'row',
+        overflow: isMobile ? 'visible' : 'hidden',
         position: 'relative',
         zIndex: 1,
       }}>
         {/* LEFT — Players */}
         <div style={{
-          width: 340,
-          borderRight: th.leftBorder,
+          width: isMobile ? '100%' : 340,
+          borderRight: isMobile ? 'none' : th.leftBorder,
+          borderBottom: isMobile ? th.leftBorder : 'none',
           display: 'flex',
           flexDirection: 'column',
-          padding: '28px 28px',
+          padding: isMobile ? '20px 20px' : '28px 28px',
           overflowY: 'auto',
           flexShrink: 0,
         }}>
@@ -444,7 +450,7 @@ export function LobbyRoomScreen() {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          padding: '28px 36px',
+          padding: isMobile ? '20px 20px' : '28px 36px',
           overflowY: 'auto',
         }}>
           {/* Map selector */}
@@ -457,10 +463,9 @@ export function LobbyRoomScreen() {
             }}>
               Map
             </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
               {availableMaps.map((map) => {
                 const sel = settings.mapTemplateId === map.id;
-                const sizeLabel: Record<string, string> = { standard: '19 tiles', large: '30 tiles', huge: '37 tiles' };
                 return (
                   <button
                     key={map.id}
@@ -470,13 +475,18 @@ export function LobbyRoomScreen() {
                       background: sel ? th.cardSelBg : th.cardUnselBg,
                       border: `1.5px solid ${sel ? th.cardSelBorder : th.cardUnselBorder}`,
                       borderRadius: 12,
-                      padding: '14px 20px',
+                      padding: '12px 16px',
                       cursor: isHost ? 'pointer' : 'default',
                       textAlign: 'left',
                       transition: 'all 0.15s',
                       minWidth: 120,
                     }}
                   >
+                    {map.previewHexes && map.previewHexes.length > 0 && (
+                      <div style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden' }}>
+                        <MapPreview hexes={map.previewHexes} width={72} height={52} />
+                      </div>
+                    )}
                     <div style={{
                       fontSize: 15, fontWeight: 700,
                       color: sel ? th.cardSelTitleColor : th.cardUnselTitleColor,
@@ -486,7 +496,7 @@ export function LobbyRoomScreen() {
                       {(map.name.split('(')[0] ?? map.name).trim()}
                     </div>
                     <div style={{ fontSize: 11, color: sel ? th.cardSubSelColor : th.cardSubColor, marginTop: 4, fontStyle: 'italic' }}>
-                      {map.playerCounts[0]}–{map.playerCounts[map.playerCounts.length - 1]} players · {sizeLabel[map.id] ?? ''}
+                      {map.playerCounts[0]}–{map.playerCounts[map.playerCounts.length - 1]} players · {map.hexCount ? `${map.hexCount} tiles` : ''}
                     </div>
                   </button>
                 );

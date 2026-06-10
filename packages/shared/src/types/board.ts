@@ -53,13 +53,15 @@ export interface GameBoard {
 export interface MapTemplate {
   id: string;
   name: string;
-  /** Fixed terrain assignments; if null, terrain pool is shuffled */
-  hexes: Array<{ coord: CubeCoord; terrain: TerrainType | null }>;
+  /** Fixed terrain assignments; if null, terrain pool is shuffled. If locked:true, terrain is never shuffled. */
+  hexes: Array<{ coord: CubeCoord; terrain: TerrainType | null; locked?: boolean }>;
   /** Number token pool placed in spiral order (skip desert) */
   numberTokens: number[];
   /** Fixed port assignments by edge key (use for standard map) */
   ports?: Array<{ type: PortType; edgeKey: EdgeKey }>;
   /** Port type pool — if provided, ports are randomly distributed per game */
   portTypes?: PortType[];
+  /** Hex coords displayed as 'clouds' until revealed by adjacent road placement */
+  cloudedCoords?: CubeCoord[];
   playerCounts: number[];
 }

@@ -20,6 +20,7 @@ import type { Server as IOServer, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 
 import { buildBoard, getMapById } from '../maps/MapGenerator.js';
+import type { HexSecret } from '../maps/MapGenerator.js';
 import { BotController } from './BotController.js';
 import { TurnTimer } from './TurnTimer.js';
 import {
@@ -69,6 +70,7 @@ export class GameEngine {
   private settings: LobbySettings;
   private readyForNext = new Set<string>();
   private bots = new Map<string, BotController>();
+  private hexSecrets = new Map<string, HexSecret>();
 
   constructor(
     lobbyId: string,
@@ -84,7 +86,8 @@ export class GameEngine {
     this.devDeck = shuffleDeck(buildDeck(), Math.random);
 
     const mapTemplate = getMapById(settings.mapTemplateId);
-    const board = buildBoard(mapTemplate, Math.random);
+    const { board, secrets } = buildBoard(mapTemplate, Math.random);
+    this.hexSecrets = secrets;
 
     const gamePlayers: Player[] = players.map((p, i) => ({
       id: p.id,
@@ -505,6 +508,7 @@ export class GameEngine {
 
     this.state.board.edges[ek]!.road = { owner: playerId };
     player.roadsLeft--;
+    this.revealCloudsAdjacentToRoad(ek);
 
     this.io.to(this.lobbyId).emit('game:building_placed', {
       buildingType: 'road',
@@ -894,6 +898,29 @@ export class GameEngine {
   private updateVP(): void {
     for (const player of this.state.players) {
       player.victoryPoints = computeVP(this.state, player).total;
+    }
+  }
+
+  // Reveals up to 4 cloud hexes adjacent to the placed road edge.
+  // A road between V1-V2 spanning hexes A,B can also expose C (extra hex at V1) and D (extra hex at V2).
+  private revealCloudsAdjacentToRoad(ek: EdgeKey): void {
+    if (this.hexSecrets.size === 0) return;
+    const edge = this.state.board.edges[ek];
+    if (!edge) return;
+    const [A, B] = edge.adjacentHexKeys;
+    const [vk1, vk2] = edge.adjacentVertexKeys;
+    const v1 = this.state.board.vertices[vk1 ?? ''];
+    const v2 = this.state.board.vertices[vk2 ?? ''];
+    const C = v1?.adjacentHexKeys.find((hk) => hk !== A && hk !== B);
+    const D = v2?.adjacentHexKeys.find((hk) => hk !== A && hk !== B);
+    for (const hk of [A, B, C, D]) {
+      if (!hk) continue;
+      const secret = this.hexSecrets.get(hk);
+      const hex = this.state.board.hexes[hk];
+      if (!secret || !hex || hex.terrain !== 'clouds') continue;
+      hex.terrain = secret.terrain;
+      hex.numberToken = secret.numberToken;
+      this.hexSecrets.delete(hk);
     }
   }
 

@@ -138,15 +138,15 @@ export function ActivityLog({ players }: Props) {
   return (
     <div style={{
       background: 'var(--ui-panel)',
-      borderRadius: 8,
+      borderRadius: 10,
       border: '1px solid var(--ui-border)',
       display: 'flex',
       flexDirection: 'column',
       minHeight: 0,
       maxHeight: 180,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--ui-text-muted)', padding: '6px 10px 4px', borderBottom: '1px solid var(--ui-border-light)', flexShrink: 0 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ui-text-muted)', padding: '7px 10px 5px', borderBottom: '1px solid var(--ui-border-light)', flexShrink: 0, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 2, textTransform: 'uppercase' }}>
         Activity
       </div>
       <div

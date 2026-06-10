@@ -4,6 +4,11 @@ import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { useThemeStore } from '../../store/useThemeStore.js';
 import { socket } from '../../socket.js';
 
+const PLAYER_COLORS: Record<string, string> = {
+  red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#8a8a9a',
+  green: '#2ecc71', purple: '#9b59b6', yellow: '#e8c730', pink: '#e91e8c',
+};
+
 const PHASE_LABELS: Partial<Record<string, string>> = {
   SETUP_PLACE_SETTLEMENT: 'Place Settlement',
   SETUP_PLACE_ROAD: 'Place Road',
@@ -36,6 +41,8 @@ export function TurnPhaseBar({ gameState, myPlayerId, validMoves, onLeave }: Pro
   const { dark, toggle } = useThemeStore();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
+  const activeColor = activePlayer ? PLAYER_COLORS[activePlayer.color] : null;
+
   return (
     <div style={{
       background: 'var(--ui-topbar)',
@@ -43,14 +50,19 @@ export function TurnPhaseBar({ gameState, myPlayerId, validMoves, onLeave }: Pro
       display: 'flex',
       alignItems: 'center',
       gap: 12,
-      borderBottom: '2px solid var(--ui-topbar-border)',
+      borderBottom: 'none',
+      boxShadow: `0 2px 0 var(--ui-topbar-border), 0 3px 8px rgba(0,0,0,0.15)`,
       flexWrap: 'wrap',
     }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--ui-topbar-text)', fontSize: 11, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>Phase: </span>
         <strong style={{ color: 'var(--ui-topbar-strong)', fontFamily: "'Cinzel', Georgia, serif", fontSize: 13 }}>{PHASE_LABELS[phase] ?? phase}</strong>
         <span style={{ color: 'var(--ui-topbar-text)', fontSize: 11, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>| Active: </span>
-        <strong style={{ color: 'var(--ui-topbar-strong)', fontFamily: "'Cinzel', Georgia, serif", fontSize: 13 }}>{activePlayer?.name ?? '?'}</strong>
+        <strong style={{
+          color: activeColor ?? 'var(--ui-topbar-strong)',
+          fontFamily: "'Cinzel', Georgia, serif", fontSize: 13,
+          textShadow: activeColor ? `0 0 12px ${activeColor}88` : undefined,
+        }}>{activePlayer?.name ?? '?'}</strong>
         {isMe && <span style={{ color: '#ffd270', fontSize: 12 }}>(you)</span>}
         {diceRoll && (
           <span style={{ marginLeft: 8, fontSize: 18, color: 'var(--ui-topbar-strong)' }}>

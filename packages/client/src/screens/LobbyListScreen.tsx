@@ -3,6 +3,7 @@ import { socket } from '../socket.js';
 import { useLobbyStore } from '../store/useLobbyStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
 import { useThemeStore } from '../store/useThemeStore.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 import type { LobbyState } from '@opensettlers/shared';
 
 function makeTheme(dark: boolean) {
@@ -181,6 +182,7 @@ export function LobbyListScreen() {
     });
   };
 
+  const isMobile = useIsMobile();
   const waitingLobbies = lobbies.filter((l) => l.status === 'waiting' && !l.settings.private);
 
   const inputSt: React.CSSProperties = {
@@ -211,7 +213,8 @@ export function LobbyListScreen() {
       minHeight: '100vh',
       background: th.bg,
       display: 'flex',
-      overflow: 'hidden',
+      flexDirection: isMobile ? 'column' : 'row',
+      overflow: isMobile ? 'auto' : 'hidden',
       fontFamily: "'Crimson Pro', Georgia, serif",
       color: th.text,
     }}>
@@ -223,13 +226,14 @@ export function LobbyListScreen() {
 
       {/* ── LEFT PANEL ── */}
       <div style={{
-        width: 400,
-        minHeight: '100vh',
-        borderRight: th.dividerRight,
+        width: isMobile ? '100%' : 400,
+        minHeight: isMobile ? 'unset' : '100vh',
+        borderRight: isMobile ? 'none' : th.dividerRight,
+        borderBottom: isMobile ? th.divider : 'none',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '52px 44px',
+        justifyContent: isMobile ? 'flex-start' : 'center',
+        padding: isMobile ? '32px 24px' : '52px 44px',
         position: 'relative',
         zIndex: 1,
         flexShrink: 0,
@@ -379,16 +383,16 @@ export function LobbyListScreen() {
       {/* ── RIGHT PANEL ── */}
       <div style={{
         flex: 1,
-        minHeight: '100vh',
+        minHeight: isMobile ? 'unset' : '100vh',
         display: 'flex',
         flexDirection: 'column',
-        padding: '52px 52px',
+        padding: isMobile ? '24px 24px' : '52px 52px',
         overflowY: 'auto',
         zIndex: 1,
         position: 'relative',
       }}>
         {/* Theme toggle */}
-        <div style={{ position: 'absolute', top: 24, right: 36, zIndex: 2 }}>
+        <div style={{ position: isMobile ? 'static' : 'absolute', top: 24, right: 36, zIndex: 2, marginBottom: isMobile ? 16 : 0, display: 'flex', justifyContent: isMobile ? 'flex-end' : undefined }}>
           <button
             onClick={toggle}
             title={dark ? 'Switch to light mode' : 'Switch to dark mode'}

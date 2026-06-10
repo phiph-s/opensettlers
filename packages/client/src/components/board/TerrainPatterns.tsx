@@ -73,6 +73,22 @@ export function TerrainPatterns() {
         <path d="M 0 13 Q 7.5 16 15 13 Q 22.5 10 30 13"
           fill="none" stroke="#b49030" strokeWidth="0.8" opacity="0.3" />
       </pattern>
+
+      {/* CLOUDS: soft puffball clouds on sky blue — terrain hidden until explored */}
+      <pattern id="pat-clouds" width="80" height="60" patternUnits="userSpaceOnUse">
+        <rect width="80" height="60" fill="#c0d8f4" />
+        {/* Cloud 1 — upper-left */}
+        <ellipse cx="18" cy="20" rx="12" ry="7"  fill="rgba(255,255,255,0.75)" />
+        <ellipse cx="10" cy="22" rx="7"  ry="5"  fill="rgba(255,255,255,0.60)" />
+        <ellipse cx="26" cy="23" rx="8"  ry="5"  fill="rgba(255,255,255,0.60)" />
+        {/* Cloud 2 — lower-right */}
+        <ellipse cx="58" cy="42" rx="14" ry="8"  fill="rgba(255,255,255,0.70)" />
+        <ellipse cx="47" cy="45" rx="8"  ry="5"  fill="rgba(255,255,255,0.55)" />
+        <ellipse cx="68" cy="45" rx="9"  ry="5.5" fill="rgba(255,255,255,0.55)" />
+        {/* Subtle shadow on underside */}
+        <ellipse cx="18" cy="25" rx="11" ry="3"  fill="rgba(180,200,230,0.30)" />
+        <ellipse cx="58" cy="48" rx="13" ry="3"  fill="rgba(180,200,230,0.25)" />
+      </pattern>
     </>
   );
 }

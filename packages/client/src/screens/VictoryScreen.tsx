@@ -11,6 +11,8 @@ const COLOR_MAP: Record<string, string> = {
   black: '#2c2c2c',
   green: '#2ecc71',
   purple: '#9b59b6',
+  yellow: '#e8c730',
+  pink: '#e91e8c',
 };
 
 function ordinal(n: number): string {

@@ -8,6 +8,8 @@ import {
 import { STANDARD_MAP } from './standard.map.js';
 import { LARGE_MAP } from './large.map.js';
 import { HUGE_MAP } from './huge.map.js';
+import { CLOUDS_MAP } from './clouds.map.js';
+import { WORLD_MAP } from './world.map.js';
 import { distributePorts } from './portUtils.js';
 import type {
   CubeCoord,
@@ -34,21 +36,36 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
   return a;
 }
 
-export function buildBoard(template: MapTemplate, rng: () => number): GameBoard {
+export type HexSecret = { terrain: TerrainType; numberToken: number | null };
+
+export function buildBoard(template: MapTemplate, rng: () => number): { board: GameBoard; secrets: Map<HexKey, HexSecret> } {
   const hexes: Record<HexKey, Hex> = {};
   const vertices: Record<VertexKey, Vertex> = {};
   const edges: Record<EdgeKey, Edge> = {};
 
-  // Shuffle non-fixed terrain
-  const shuffledTerrains: TerrainType[] = shuffle(
-    template.hexes.map((h) => h.terrain ?? ('forest' as TerrainType)),
-    rng
-  );
+  // Separate locked hexes (fixed terrain, not shuffled) from the shuffle pool
+  const poolTerrains: TerrainType[] = [];
+  const lockedTerrainByIndex = new Map<number, TerrainType>();
+  for (let i = 0; i < template.hexes.length; i++) {
+    const h = template.hexes[i]!;
+    if (h.locked && h.terrain !== null) {
+      lockedTerrainByIndex.set(i, h.terrain);
+    } else {
+      poolTerrains.push(h.terrain ?? ('forest' as TerrainType));
+    }
+  }
 
-  // Find desert index for robber placement
+  const shuffledPool = shuffle(poolTerrains, rng);
+  let poolIdx = 0;
+  const shuffledTerrains: TerrainType[] = template.hexes.map((_h, i) => {
+    if (lockedTerrainByIndex.has(i)) return lockedTerrainByIndex.get(i)!;
+    return shuffledPool[poolIdx++] ?? ('forest' as TerrainType);
+  });
+
+  // Find desert index for robber placement (first non-clouded desert)
   const desertIndex = shuffledTerrains.indexOf('desert');
 
-  // Place number tokens in spiral order, skipping desert
+  // Place number tokens for all productive hexes (skipping desert; clouds get tokens hidden in secrets)
   const tokenQueue = shuffle([...template.numberTokens], rng);
   const tokenAssignments = new Map<number, number>();
   let tokenIdx = 0;
@@ -69,6 +86,20 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
       numberToken: tokenAssignments.get(i) ?? null,
       hasRobber: i === desertIndex,
     };
+  }
+
+  // Hide clouded hexes: store true terrain+token in secrets, display as 'clouds'
+  const secrets = new Map<HexKey, HexSecret>();
+  if (template.cloudedCoords) {
+    const cloudedSet = new Set(template.cloudedCoords.map((c) => cubeKey(c)));
+    for (const [hk, hex] of Object.entries(hexes)) {
+      if (cloudedSet.has(hk)) {
+        secrets.set(hk, { terrain: hex.terrain, numberToken: hex.numberToken });
+        hex.terrain = 'clouds';
+        hex.numberToken = null;
+        hex.hasRobber = false;
+      }
+    }
   }
 
   // Determine which hex keys are "land" (non-sea)
@@ -221,10 +252,10 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
     }
   }
 
-  return { hexes, vertices, edges };
+  return { board: { hexes, vertices, edges }, secrets };
 }
 
-const ALL_MAPS: MapTemplate[] = [STANDARD_MAP, LARGE_MAP, HUGE_MAP];
+const ALL_MAPS: MapTemplate[] = [STANDARD_MAP, LARGE_MAP, HUGE_MAP, CLOUDS_MAP, WORLD_MAP];
 
 export { STANDARD_MAP };
 

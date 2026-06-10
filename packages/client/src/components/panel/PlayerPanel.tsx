@@ -4,7 +4,7 @@ import { longestRoadForPlayer } from '@opensettlers/shared';
 
 const COLOR_MAP: Record<string, string> = {
   red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#2c2c2c',
-  green: '#2ecc71', purple: '#9b59b6',
+  green: '#2ecc71', purple: '#9b59b6', yellow: '#e8c730', pink: '#e91e8c',
 };
 
 const RESOURCES = ['wood', 'brick', 'wheat', 'sheep', 'ore'] as const;
@@ -144,11 +144,11 @@ export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, l
     >
       {/* Avatar */}
       <div style={{
-        width: 36, height: 36, borderRadius: '50%', background: color,
+        width: 40, height: 40, borderRadius: '50%', background: color,
         border: `3px solid ${isActive ? '#f0c040' : 'rgba(0,0,0,0.12)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        boxShadow: isActive ? `0 0 10px ${color}88` : '0 1px 4px rgba(0,0,0,0.18)',
-        fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,0.92)',
+        boxShadow: isActive ? `0 0 14px ${color}99, 0 2px 6px rgba(0,0,0,0.25)` : '0 1px 4px rgba(0,0,0,0.18)',
+        fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,0.92)',
         textShadow: '0 1px 3px rgba(0,0,0,0.35)', userSelect: 'none',
       }}>
         {player.name.charAt(0).toUpperCase()}

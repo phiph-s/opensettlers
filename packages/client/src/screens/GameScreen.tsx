@@ -3,6 +3,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
 import { useValidMoves } from '../hooks/useValidMoves.js';
 import { useSoundEffects } from '../hooks/useSoundEffects.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 import { HexGrid } from '../components/board/HexGrid.js';
 import { PanZoomBoard } from '../components/board/PanZoomBoard.js';
 import { TurnPhaseBar } from '../components/hud/TurnPhaseBar.js';
@@ -32,6 +33,8 @@ export function GameScreen() {
   const validMoves = useValidMoves(gameState, myPlayerId);
   useSoundEffects(gameState, myPlayerId);
   const [buildMode, setBuildMode] = useState<'road' | 'settlement' | 'city' | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Clear build mode whenever the phase changes (placement was accepted or turn ended)
   const prevPhaseRef = useRef<string | null>(null);
@@ -53,6 +56,59 @@ export function GameScreen() {
 
   const totalSeconds = 60; // rough fallback; could derive from settings
 
+  const onLeave = () => {
+    if (currentLobby) {
+      socket.emit('game:leave', { lobbyId: currentLobby.id }, (res) => {
+        if (res.ok) {
+          clearGame();
+          setCurrentLobby(null);
+          usePlayerStore.getState().setLobbyId(null);
+        }
+      });
+    }
+  };
+
+  const sidePanel = (
+    <>
+      <ActivityLog players={players} />
+      <BankPanel bank={gameState.bank} devCardDeckSize={gameState.devCardDeckSize} />
+      {players.map((p) => (
+        <PlayerPanel
+          key={p.id}
+          player={p}
+          isActive={p.id === activePlayer?.id}
+          isMe={p.id === myPlayerId}
+          board={gameState.board}
+          longestRoadOwner={gameState.longestRoadOwner}
+          largestArmyOwner={gameState.largestArmyOwner}
+        />
+      ))}
+    </>
+  );
+
+  const bottomBar = (
+    <div style={{
+      display: 'flex', gap: 10, padding: '8px 12px',
+      background: 'var(--ui-bg)', borderTop: '1px solid var(--ui-border)',
+      alignItems: 'center',
+      boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.08)',
+      overflowX: isMobile ? 'auto' : undefined,
+      flexWrap: isMobile ? 'nowrap' : undefined,
+    }}>
+      {me && <ResourceHand player={me} portRates={portRates} playerId={me.id} />}
+      {me && me.devCards.length > 0 && (
+        <DevCardHand
+          devCards={me.devCards}
+          turnPhase={phase}
+          isMyTurn={myPlayerId === activePlayer?.id}
+          turnNumber={gameState.turnNumber}
+          bank={gameState.bank}
+        />
+      )}
+      {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} />}
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <OceanBackground />
@@ -60,22 +116,12 @@ export function GameScreen() {
         gameState={gameState}
         myPlayerId={myPlayerId}
         validMoves={validMoves}
-        onLeave={() => {
-          if (currentLobby) {
-            socket.emit('game:leave', { lobbyId: currentLobby.id }, (res) => {
-              if (res.ok) {
-                clearGame();
-                setCurrentLobby(null);
-                usePlayerStore.getState().setLobbyId(null);
-              }
-            });
-          }
-        }}
+        onLeave={onLeave}
       />
       <TurnTimerBar deadline={phaseDeadline} totalSeconds={totalSeconds} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'transparent' }}>
-        {/* Board — position:relative so floating overlays can sit above it */}
+        {/* Board */}
         <div style={{ flex: 1, overflow: 'hidden', padding: 8, position: 'relative', background: 'transparent' }}>
           <PanZoomBoard>
             <HexGrid gameState={gameState} myPlayerId={myPlayerId} validMoves={validMoves} buildMode={buildMode} onBuildModeChange={setBuildMode} />
@@ -98,49 +144,78 @@ export function GameScreen() {
               canRoll={validMoves.canRoll && myPlayerId === activePlayer?.id}
             />
           </div>
+          {/* Mobile: floating players button */}
+          {isMobile && (
+            <button
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+                zIndex: 10,
+                background: 'var(--ui-bg)', border: '1px solid var(--ui-border)',
+                borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
+                color: 'var(--ui-text)', fontSize: 12, fontFamily: "'Cinzel', Georgia, serif",
+                letterSpacing: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              }}
+            >
+              Players
+            </button>
+          )}
         </div>
 
-        {/* Side panel */}
-        <div style={{
-          width: 248,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          padding: 8,
-          overflowY: 'auto',
-          background: 'var(--ui-bg)',
-          borderLeft: '1px solid var(--ui-border)',
-        }}>
-          <ActivityLog players={players} />
-          <BankPanel bank={gameState.bank} devCardDeckSize={gameState.devCardDeckSize} />
-          {players.map((p) => (
-            <PlayerPanel
-              key={p.id}
-              player={p}
-              isActive={p.id === activePlayer?.id}
-              isMe={p.id === myPlayerId}
-              board={gameState.board}
-              longestRoadOwner={gameState.longestRoadOwner}
-              largestArmyOwner={gameState.largestArmyOwner}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom bar — resources + dev cards + build actions */}
-      <div style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'var(--ui-bg)', borderTop: '1px solid var(--ui-border)', alignItems: 'center' }}>
-        {me && <ResourceHand player={me} portRates={portRates} playerId={me.id} />}
-        {me && me.devCards.length > 0 && (
-          <DevCardHand
-            devCards={me.devCards}
-            turnPhase={phase}
-            isMyTurn={myPlayerId === activePlayer?.id}
-            turnNumber={gameState.turnNumber}
-            bank={gameState.bank}
-          />
+        {/* Desktop side panel */}
+        {!isMobile && (
+          <div style={{
+            width: 248,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            padding: 10,
+            overflowY: 'auto',
+            background: 'linear-gradient(180deg, var(--ui-bg) 0%, rgba(0,0,0,0.04) 100%)',
+            borderLeft: '1px solid var(--ui-border)',
+            boxShadow: 'inset 3px 0 12px rgba(0,0,0,0.08)',
+          }}>
+            {sidePanel}
+          </div>
         )}
-        {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} />}
       </div>
+
+      {bottomBar}
+
+      {/* Mobile: slide-up drawer */}
+      {isMobile && drawerOpen && (
+        <>
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50,
+            }}
+          />
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            height: '60vh', zIndex: 51,
+            background: 'var(--ui-bg)',
+            borderTop: '1px solid var(--ui-border)',
+            borderRadius: '16px 16px 0 0',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderBottom: '1px solid var(--ui-border)', flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 11, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 2, color: 'var(--ui-text-muted)', textTransform: 'uppercase' }}>Players</span>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ui-text-muted)', fontSize: 18, lineHeight: 1, padding: 0 }}
+              >×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
+              {sidePanel}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Steal dialog */}
       {phase === 'STEAL' && myPlayerId === activePlayer?.id && gameState.robberCandidates.length > 1 && (

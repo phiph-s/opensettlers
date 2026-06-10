@@ -51,17 +51,14 @@ function ResourcePicker({ title, count, onConfirm, onCancel, bank }: ResourcePic
   const [picks, setPicks] = useState<Resource[]>([]);
 
   const toggle = (r: Resource) => {
-    if (count === 1) {
-      setPicks([r]);
-      return;
-    }
-    // count === 2: allow duplicate picks, click again to deselect one
-    const selectedCount = picks.filter((x) => x === r).length;
-    if (selectedCount > 0) {
-      const idx = picks.lastIndexOf(r);
-      setPicks([...picks.slice(0, idx), ...picks.slice(idx + 1)]);
+    if (count === 1) { setPicks([r]); return; }
+    const selectedCount = picks.filter(x => x === r).length;
+    if (selectedCount >= 2) {
+      setPicks(picks.filter(x => x !== r));    // 2 → 0: cycle back
     } else if (picks.length < 2) {
-      setPicks([...picks, r]);
+      setPicks([...picks, r]);                  // 0→1 or 1→2: add
+    } else {
+      setPicks(picks.filter(x => x !== r));    // at max with mixed: remove this one
     }
   };
 

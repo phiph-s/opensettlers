@@ -19,6 +19,13 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
       id: m.id,
       name: m.name,
       playerCounts: m.playerCounts,
+      hexCount: m.hexes.length,
+      previewHexes: m.hexes.map((h) => ({
+        q: h.coord.q,
+        r: h.coord.r,
+        // only include terrain when it's a fixed value (helps previews show clouds/desert rings)
+        ...(h.terrain !== null && { terrain: h.terrain }),
+      })),
     }));
     ack({ ok: true, data: maps });
   });

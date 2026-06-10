@@ -10,6 +10,9 @@ export function validSetupVertices(board: GameBoard): VertexKey[] {
         return hex && hex.terrain !== 'sea';
       });
       if (!touchesLand) return false;
+      // Cannot place adjacent to unrevealed cloud hexes during setup
+      const touchesClouds = v.adjacentHexKeys.some((hk) => board.hexes[hk]?.terrain === 'clouds');
+      if (touchesClouds) return false;
       // No existing building here
       if (v.building !== null) return false;
       // Distance rule: all adjacent vertices must be empty
