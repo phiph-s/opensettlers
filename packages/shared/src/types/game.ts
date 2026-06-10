@@ -54,6 +54,7 @@ export interface GameState {
   lastPlacedSettlementKey: string | null;
   cloudOriginKeys: string[];
   bank: Record<import('./primitives.js').Resource, number>;
+  winTarget: number;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';
@@ -70,6 +71,7 @@ export interface LobbySettings {
   bankResourceCount: number;
   balancedDice: boolean;
   friendlyRobber: boolean;
+  vpToWin: number;
 }
 
 export interface LobbySlot {

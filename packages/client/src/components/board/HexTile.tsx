@@ -82,33 +82,57 @@ export function HexTile({ hex, center, size, rolledNumber }: Props) {
 }
 
 function RobberPiece({ cx, cy, r }: { cx: number; cy: number; r: number }) {
-  // Hooded cloak silhouette — 8-point shape wider at bottom
-  const pts = [
-    [cx,           cy - r * 1.15],  // hood tip
-    [cx + r * 0.62, cy - r * 0.68],  // upper right
-    [cx + r * 0.95, cy + r * 0.10],  // mid right
-    [cx + r * 0.85, cy + r * 0.88],  // lower right
-    [cx + r * 0.30, cy + r * 1.05],  // bottom right
-    [cx - r * 0.30, cy + r * 1.05],  // bottom left
-    [cx - r * 0.85, cy + r * 0.88],  // lower left
-    [cx - r * 0.95, cy + r * 0.10],  // mid left
-    [cx - r * 0.62, cy - r * 0.68],  // upper left
-  ].map(([px, py]) => `${px},${py}`).join(' ');
+  const headCy = cy - r * 0.58;
+  const headR  = r * 0.40;
+
+  // Cloak path: shoulders narrow, hem wide
+  const cloak = [
+    `M ${cx - r*0.40} ${cy - r*0.22}`,
+    `Q ${cx - r*0.52} ${cy + r*0.42} ${cx - r*0.92} ${cy + r*1.05}`,
+    `L ${cx + r*0.92} ${cy + r*1.05}`,
+    `Q ${cx + r*0.52} ${cy + r*0.42} ${cx + r*0.40} ${cy - r*0.22} Z`,
+  ].join(' ');
+
+  // Pointed hood behind the head
+  const hood = [
+    `M ${cx - headR*1.12} ${headCy + headR*0.35}`,
+    `Q ${cx - headR*0.55} ${headCy - headR*2.0} ${cx} ${headCy - headR*2.35}`,
+    `Q ${cx + headR*0.55} ${headCy - headR*2.0} ${cx + headR*1.12} ${headCy + headR*0.35}`,
+    `Q ${cx} ${headCy + headR*0.15} ${cx - headR*1.12} ${headCy + headR*0.35} Z`,
+  ].join(' ');
+
+  // Red bandana covers the lower half of the face
+  const bandana = [
+    `M ${cx - headR*0.90} ${headCy + headR*0.08}`,
+    `A ${headR} ${headR} 0 0 0 ${cx + headR*0.90} ${headCy + headR*0.08}`,
+    `Q ${cx + headR*0.78} ${headCy + headR*0.94} ${cx} ${headCy + headR*0.98}`,
+    `Q ${cx - headR*0.78} ${headCy + headR*0.94} ${cx - headR*0.90} ${headCy + headR*0.08} Z`,
+  ].join(' ');
+
+  const ex = r * 0.155; // eye x-offset from center
+  const ey = headCy - headR * 0.10;
 
   return (
-    <g filter="drop-shadow(0 3px 5px rgba(0,0,0,0.8))" style={{ pointerEvents: 'none' }}>
-      {/* White border behind */}
-      <polygon points={pts} fill="none" stroke="rgba(255,255,255,0.68)" strokeWidth={2.5} strokeLinejoin="round" />
-      {/* Dark cloak fill */}
-      <polygon points={pts} fill="#1a1008" strokeLinejoin="round" />
-      {/* Glowing red eyes */}
-      <circle cx={cx - r * 0.26} cy={cy - r * 0.18} r={r * 0.16} fill="#b91c1c" />
-      <circle cx={cx + r * 0.26} cy={cy - r * 0.18} r={r * 0.16} fill="#b91c1c" />
-      {/* Menacing grin */}
-      <path
-        d={`M ${cx - r * 0.30} ${cy + r * 0.28} Q ${cx} ${cy + r * 0.52} ${cx + r * 0.30} ${cy + r * 0.28}`}
-        stroke="#b91c1c" strokeWidth={1.8} fill="none" strokeLinecap="round"
-      />
+    <g filter="drop-shadow(0 2px 5px rgba(0,0,0,0.9))" style={{ pointerEvents: 'none' }}>
+      {/* White glow outline */}
+      <path d={hood}  fill="rgba(255,255,255,0.45)" />
+      <path d={cloak} fill="rgba(255,255,255,0.45)" />
+      <circle cx={cx} cy={headCy} r={headR + 1.8} fill="rgba(255,255,255,0.42)" />
+
+      {/* Hood */}
+      <path d={hood} fill="#1c1408" stroke="rgba(255,255,255,0.28)" strokeWidth={1.2} strokeLinejoin="round" />
+      {/* Cloak */}
+      <path d={cloak} fill="#1c1408" />
+      {/* Head */}
+      <circle cx={cx} cy={headCy} r={headR} fill="#28200e" />
+      {/* Bandana */}
+      <path d={bandana} fill="#991515" opacity={0.9} />
+
+      {/* Eyes: white sclera + red iris */}
+      <circle cx={cx - ex} cy={ey} r={r * 0.118} fill="rgba(255,255,255,0.92)" />
+      <circle cx={cx + ex} cy={ey} r={r * 0.118} fill="rgba(255,255,255,0.92)" />
+      <circle cx={cx - ex} cy={ey} r={r * 0.068} fill="#e03030" />
+      <circle cx={cx + ex} cy={ey} r={r * 0.068} fill="#e03030" />
     </g>
   );
 }

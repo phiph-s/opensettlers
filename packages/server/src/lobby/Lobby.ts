@@ -36,6 +36,7 @@ export class Lobby {
       bankResourceCount: settings.bankResourceCount ?? 19,
       balancedDice: settings.balancedDice ?? false,
       friendlyRobber: settings.friendlyRobber ?? false,
+      vpToWin: settings.vpToWin ?? 10,
     };
     this.slots = Array.from({ length: this.settings.maxPlayers }, (_, i) => ({
       playerId: null,

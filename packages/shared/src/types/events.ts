@@ -126,7 +126,7 @@ export interface ServerToClientEvents {
   }) => void;
   'game:trade_executed': (payload: {
     fromPlayerId: string;
-    toPlayerId: string;
+    toPlayerId: string | null;  // null = bank (maritime trade)
     offered: Partial<Record<Resource, number>>;
     received: Partial<Record<Resource, number>>;
   }) => void;

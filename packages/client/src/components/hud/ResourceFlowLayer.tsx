@@ -32,6 +32,16 @@ function panelCenter(playerId: string): { x: number; y: number } | null {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+function bankCenter(): { x: number; y: number } {
+  const el = document.querySelector('[data-bank-panel]');
+  if (!el) return boardCenter();
+  const r = el.getBoundingClientRect();
+  return {
+    x: r.left + r.width / 2 + (Math.random() - 0.5) * 30,
+    y: r.top + r.height / 2 + (Math.random() - 0.5) * 10,
+  };
+}
+
 function arcMid(
   sx: number, sy: number,
   ex: number, ey: number,
@@ -142,46 +152,65 @@ export function ResourceFlowLayer({ gameState }: Props) {
     return () => { socket.off('game:resources_distributed', handler); };
   }, []);
 
-  // Player-to-player trade
+  // Trade animation (player-to-player and bank/maritime)
   useEffect(() => {
     const handler = (data: {
       fromPlayerId: string;
-      toPlayerId: string;
+      toPlayerId: string | null;
       offered: Partial<Record<Resource, number>>;
       received: Partial<Record<Resource, number>>;
     }) => {
       const fromPos = panelCenter(data.fromPlayerId);
-      const toPos   = panelCenter(data.toPlayerId);
-      if (!fromPos || !toPos) return;
+      if (!fromPos) return;
+
+      if (!data.toPlayerId) {
+        // Maritime / bank trade: player → board-center, then board-center → player
+        const giveItems: Parameters<typeof spawnBatch>[0] = [];
+        const getItems:  Parameters<typeof spawnBatch>[0] = [];
+
+        for (const [res, count] of Object.entries(data.offered) as [Resource, number][]) {
+          const imgSrc = RESOURCE_IMAGES[res];
+          if (!imgSrc) continue;
+          for (let i = 0; i < Math.min(count, 4); i++) {
+            const bank = bankCenter();
+            giveItems.push({ kind: 'resource', imgSrc, sx: fromPos.x, sy: fromPos.y, ex: bank.x, ey: bank.y, leftArc: 55, upArc: 25 });
+          }
+        }
+
+        for (const [res, count] of Object.entries(data.received) as [Resource, number][]) {
+          const imgSrc = RESOURCE_IMAGES[res];
+          if (!imgSrc) continue;
+          for (let i = 0; i < Math.min(count, 4); i++) {
+            const bank = bankCenter();
+            getItems.push({ kind: 'resource', imgSrc, sx: bank.x, sy: bank.y, ex: fromPos.x, ey: fromPos.y, leftArc: 55, upArc: 25 });
+          }
+        }
+
+        // Stagger: give first, receive after the outbound flight lands (~400 ms)
+        spawnBatch(giveItems, 0);
+        spawnBatch(getItems, 400);
+        return;
+      }
+
+      // Player-to-player trade
+      const toPos = panelCenter(data.toPlayerId);
+      if (!toPos) return;
 
       const items: Parameters<typeof spawnBatch>[0] = [];
 
-      // Offered resources: fromPlayer → toPlayer
       for (const [res, count] of Object.entries(data.offered) as [Resource, number][]) {
         const imgSrc = RESOURCE_IMAGES[res];
         if (!imgSrc) continue;
         for (let i = 0; i < Math.min(count, 3); i++) {
-          items.push({
-            kind: 'resource', imgSrc,
-            sx: fromPos.x, sy: fromPos.y,
-            ex: toPos.x, ey: toPos.y,
-            // Arc toward the board (leftward = outward from the right panel)
-            leftArc: 70, upArc: 0,
-          });
+          items.push({ kind: 'resource', imgSrc, sx: fromPos.x, sy: fromPos.y, ex: toPos.x, ey: toPos.y, leftArc: 70, upArc: 0 });
         }
       }
 
-      // Received resources: toPlayer → fromPlayer
       for (const [res, count] of Object.entries(data.received) as [Resource, number][]) {
         const imgSrc = RESOURCE_IMAGES[res];
         if (!imgSrc) continue;
         for (let i = 0; i < Math.min(count, 3); i++) {
-          items.push({
-            kind: 'resource', imgSrc,
-            sx: toPos.x, sy: toPos.y,
-            ex: fromPos.x, ey: fromPos.y,
-            leftArc: 70, upArc: 0,
-          });
+          items.push({ kind: 'resource', imgSrc, sx: toPos.x, sy: toPos.y, ex: fromPos.x, ey: fromPos.y, leftArc: 70, upArc: 0 });
         }
       }
 

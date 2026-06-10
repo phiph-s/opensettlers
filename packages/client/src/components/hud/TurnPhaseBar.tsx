@@ -69,6 +69,15 @@ export function TurnPhaseBar({ gameState, myPlayerId, validMoves, onLeave }: Pro
             🎲 {diceRoll[0]} + {diceRoll[1]} = <strong>{diceRoll[0] + diceRoll[1]}</strong>
           </span>
         )}
+        <span style={{
+          marginLeft: 'auto', fontSize: 11,
+          color: 'var(--ui-topbar-text)',
+          fontFamily: "'Cinzel', Georgia, serif",
+          whiteSpace: 'nowrap',
+          opacity: 0.75,
+        }}>
+          First to {gameState.winTarget} VP
+        </span>
         {phase === 'DISCARD_PHASE' && pendingCount > 0 && (
           <span style={{ color: '#ffd270', fontSize: 13 }}>
             Discard {pendingCount} cards ↓

@@ -1,4 +1,3 @@
-import { WIN_VP } from '@opensettlers/shared';
 import type { GameState, Player, VictoryBreakdown } from '@opensettlers/shared';
 
 export function computeVP(state: GameState, player: Player): VictoryBreakdown {
@@ -28,7 +27,7 @@ export function checkWin(state: GameState): string | null {
   for (const player of state.players) {
     const breakdown = computeVP(state, player);
     player.victoryPoints = breakdown.total;
-    if (breakdown.total >= WIN_VP) return player.id;
+    if (breakdown.total >= state.winTarget) return player.id;
   }
   return null;
 }

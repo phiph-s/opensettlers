@@ -576,6 +576,48 @@ export function LobbyRoomScreen() {
                   </button>
                 );
               })}
+
+              {/* VP to Win — segmented picker */}
+              <div style={{
+                flex: 1,
+                background: th.settingsBg,
+                border: th.settingsBorder,
+                borderRadius: 14,
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 6,
+              }}>
+                <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Victory Points</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[8, 10, 12].map((v) => {
+                    const sel = settings.vpToWin === v;
+                    return (
+                      <button
+                        key={v}
+                        disabled={!isHost}
+                        onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { vpToWin: v } })}
+                        style={{
+                          flex: 1,
+                          background: sel ? th.cardSelBg : 'transparent',
+                          border: `1.5px solid ${sel ? th.cardSelBorder : th.cardUnselBorder}`,
+                          borderRadius: 8,
+                          padding: '5px 0',
+                          cursor: isHost ? 'pointer' : 'default',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: sel ? th.cardSelTitleColor : th.settingNote,
+                          fontFamily: "'Cinzel', Georgia, serif",
+                          transition: 'background 0.12s, border-color 0.12s',
+                        }}
+                      >
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

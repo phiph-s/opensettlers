@@ -219,9 +219,44 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
       {/* Port markers — rendered before vertices so they don't block clicks */}
       {portMarkers.map(({ pos, portType, v1, v2 }, i) => (
         <g key={`port-${i}`}>
-          {/* Pier lines connecting the marker to the two coastline vertices */}
-          <line x1={pos.x} y1={pos.y} x2={v1.x} y2={v1.y} stroke="#c8a96e" strokeWidth={2.5} opacity={0.75} />
-          <line x1={pos.x} y1={pos.y} x2={v2.x} y2={v2.y} stroke="#c8a96e" strokeWidth={2.5} opacity={0.75} />
+          {[v1, v2].map((v, vi) => {
+            const dx = v.x - pos.x, dy = v.y - pos.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 1) return null;
+            const ux = dx / len, uy = dy / len;
+            const px = -uy, py = ux;
+            const railOff = layout.size * 0.055;
+            const plankSpacing = layout.size * 0.14;
+            const plankHalf = railOff + layout.size * 0.022;
+            const planks = [];
+            for (let d = plankSpacing * 0.5; d < len - plankSpacing * 0.25; d += plankSpacing) {
+              const cx = pos.x + ux * d, cy = pos.y + uy * d;
+              planks.push(
+                <line key={d}
+                  x1={cx - px * plankHalf} y1={cy - py * plankHalf}
+                  x2={cx + px * plankHalf} y2={cy + py * plankHalf}
+                  stroke="#c8904a" strokeWidth={layout.size * 0.045}
+                  strokeLinecap="butt"
+                />
+              );
+            }
+            return (
+              <g key={vi}>
+                {planks}
+                {/* Side rails drawn on top of planks */}
+                <line
+                  x1={pos.x + px * railOff} y1={pos.y + py * railOff}
+                  x2={v.x + px * railOff} y2={v.y + py * railOff}
+                  stroke="#5a3010" strokeWidth={layout.size * 0.03} opacity={0.9}
+                />
+                <line
+                  x1={pos.x - px * railOff} y1={pos.y - py * railOff}
+                  x2={v.x - px * railOff} y2={v.y - py * railOff}
+                  stroke="#5a3010" strokeWidth={layout.size * 0.03} opacity={0.9}
+                />
+              </g>
+            );
+          })}
           <PortMarker position={pos} portType={portType} size={layout.size} />
         </g>
       ))}

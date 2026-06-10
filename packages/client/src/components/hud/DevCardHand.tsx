@@ -27,6 +27,14 @@ const CARD_DISPLAY: Record<string, CardDisplay> = {
   victory_point:  { label: 'Victory\nPoint',  icon: '⭐',  bg: '#f39c12', canPlay: false },
 };
 
+const CARD_DESC: Record<string, string> = {
+  knight:         'Move the robber. Steal a resource from an adjacent player. Counts toward Largest Army (7 knights = +2 VP).',
+  road_building:  'Place 2 roads for free.',
+  year_of_plenty: 'Take any 2 resources from the bank.',
+  monopoly:       'Name a resource. Every other player gives you all of that resource.',
+  victory_point:  'Worth 1 victory point. Kept secret until you win.',
+};
+
 const RESOURCES: Resource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
 
 function isPlayable(type: DevCardType, turnPhase: TurnPhase, isMyTurn: boolean, turnNumber: number, turnDrawn: number): boolean {
@@ -168,9 +176,11 @@ interface CardStackProps {
 
 function CardStack({ type, cards, playable, bank }: CardStackProps) {
   const [popup, setPopup] = useState<'yop' | 'monopoly' | null>(null);
+  const [hovered, setHovered] = useState(false);
   const display = CARD_DISPLAY[type] ?? { label: type, icon: '?', bg: '#555', canPlay: false };
   const count = cards.length;
   const labelLines = display.label.split('\n');
+  const desc = CARD_DESC[type];
 
   const handleClick = () => {
     if (!playable) return;
@@ -186,7 +196,35 @@ function CardStack({ type, cards, playable, bank }: CardStackProps) {
   };
 
   return (
-    <div style={{ position: 'relative', flexShrink: 0 }}>
+    <div
+      style={{ position: 'relative', flexShrink: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Tooltip */}
+      {hovered && desc && popup === null && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 8px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--ui-card-bg)',
+          border: '1px solid var(--ui-card-border)',
+          borderRadius: 8,
+          padding: '8px 10px',
+          fontSize: 11,
+          color: 'var(--ui-text)',
+          lineHeight: 1.5,
+          whiteSpace: 'normal',
+          width: 170,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          pointerEvents: 'none',
+          zIndex: 200,
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: 4, color: display.bg, fontSize: 11 }}>{display.label.replace('\n', ' ')}</div>
+          {desc}
+        </div>
+      )}
       {/* Shadow stack for multiple cards */}
       {count > 1 && (
         <div style={{

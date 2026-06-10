@@ -134,6 +134,7 @@ export class GameEngine {
       lastPlacedSettlementKey: null,
       cloudOriginKeys: mapTemplate.cloudedCoords?.map((coord) => cubeKey(coord)) ?? [],
       bank: { wood: settings.bankResourceCount, brick: settings.bankResourceCount, wheat: settings.bankResourceCount, sheep: settings.bankResourceCount, ore: settings.bankResourceCount },
+      winTarget: settings.vpToWin,
     };
   }
 
@@ -723,6 +724,13 @@ export class GameEngine {
       player.hand[res] = (player.hand[res] ?? 0) + amt;
       this.state.bank[res] = Math.max(0, (this.state.bank[res] ?? 0) - amt);
     }
+
+    this.io.to(this.lobbyId).emit('game:trade_executed', {
+      fromPlayerId: playerId,
+      toPlayerId: null,
+      offered: giving,
+      received: receiving,
+    });
 
     this.updateVP();
     this.broadcastState();

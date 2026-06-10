@@ -13,7 +13,7 @@ interface Props {
 
 export function BankPanel({ bank, devCardDeckSize }: Props) {
   return (
-    <div style={{
+    <div data-bank-panel="true" style={{
       background: 'var(--ui-panel)',
       borderRadius: 10,
       border: '1px solid var(--ui-border)',
