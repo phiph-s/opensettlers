@@ -19,6 +19,7 @@ import { ActivityLog } from '../components/panel/ActivityLog.js';
 import { BankPanel } from '../components/panel/BankPanel.js';
 import { StealDialog } from '../components/hud/StealDialog.js';
 import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
+import { AchievementBanner } from '../components/hud/AchievementBanner.js';
 import { OceanBackground } from '../components/board/OceanBackground.js';
 import type { GameOverSummary } from '@opensettlers/shared';
 import { useLobbyStore } from '../store/useLobbyStore.js';
@@ -163,6 +164,9 @@ export function GameScreen() {
       {gameSummary && (
         <VictoryBanner summary={gameSummary} players={players} myPlayerId={myPlayerId} />
       )}
+
+      {/* Achievement banners — longest road / largest army */}
+      <AchievementBanner gameState={gameState} />
 
       {/* Resource / dev-card flying animation layer */}
       <ResourceFlowLayer gameState={gameState} />

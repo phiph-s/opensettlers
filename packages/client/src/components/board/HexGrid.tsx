@@ -118,6 +118,14 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
     >
       <defs>
         <TerrainPatterns />
+        {/* Hex tile shadow: outer drop shadow behind each tile */}
+        <filter id="hex-tile-fx" x="-25%" y="-25%" width="150%" height="150%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.55" result="shadow" />
+          <feMerge>
+            <feMergeNode in="shadow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
       {/* Sandy island base — slightly inflated polygon behind each land hex */}

@@ -52,3 +52,17 @@ export function playRobber(): void {
   tone(110, 0.35, 'sawtooth', 0.18);
   tone(82,  0.45, 'sawtooth', 0.14, 0.25);
 }
+
+/** Short attention ping — played when a trade offer arrives */
+export function playTradeProposed(): void {
+  tone(880, 0.08, 'sine', 0.14);
+  tone(1047, 0.12, 'sine', 0.12, 0.09);
+}
+
+/** Triumphant fanfare — played when longest road or largest army is awarded */
+export function playTriumph(): void {
+  tone(523,  0.12, 'sine', 0.22);          // C5
+  tone(659,  0.12, 'sine', 0.22, 0.13);   // E5
+  tone(784,  0.12, 'sine', 0.22, 0.26);   // G5
+  tone(1047, 0.28, 'sine', 0.28, 0.39);   // C6
+}

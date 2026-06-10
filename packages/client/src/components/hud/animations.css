@@ -40,13 +40,28 @@
   100% { transform: scale(1);   opacity: 1; }
 }
 
-/* Hex flash on dice roll */
+/* Hex flash on dice roll — ends at opacity 0 so it doesn't linger */
 .hex-roll-flash {
-  animation: hexFlash 0.9s ease-in-out 4;
+  animation: hexFlash 0.9s ease-in-out 4 forwards;
   pointer-events: none;
 }
 
 @keyframes hexFlash {
-  0%, 100% { opacity: 0.15; }
-  50%       { opacity: 0.85; }
+  0%   { opacity: 0; }
+  20%  { opacity: 0.9; }
+  80%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Achievement banner — slides down from top and fades out */
+@keyframes achievementIn {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.85); }
+  20%  { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1.04); }
+  30%  { transform: translateX(-50%) translateY(0) scale(1); }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.95); }
+}
+
+.achievement-banner {
+  animation: achievementIn 3.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }

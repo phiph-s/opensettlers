@@ -54,7 +54,7 @@ const PORT_EDGE_KEYS = makePortEdges();
 
 export const STANDARD_MAP: MapTemplate = {
   id: 'standard',
-  name: 'Standard Catan (3-4 players)',
+  name: 'Standard (3-4 players)',
   hexes: hexCoords.map((coord, i) => ({
     coord,
     terrain: STANDARD_TERRAIN_POOL[i] ?? 'desert',

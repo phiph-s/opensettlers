@@ -2,18 +2,195 @@ import React, { useEffect, useState } from 'react';
 import { socket } from '../socket.js';
 import { useLobbyStore } from '../store/useLobbyStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
+import { useThemeStore } from '../store/useThemeStore.js';
 
-const COLOR_MAP: Record<string, string> = {
-  red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#2c2c2c',
+const COLOR_CSS: Record<string, string> = {
+  red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#8a8a9a',
   green: '#2ecc71', purple: '#9b59b6',
 };
 
 interface MapMeta { id: string; name: string; playerCounts: number[] }
 
+function makeTheme(dark: boolean) {
+  if (dark) return {
+    bg: 'linear-gradient(150deg, #080f1e 0%, #0c1a36 45%, #080d1a 100%)',
+    text: '#c0d0e8',
+    textMuted: '#5a7a9a',
+    textDim: '#3a6080',
+    title: '#ddc98a',
+    accent: '#c9a84c',
+    headerBorder: '1px solid rgba(201,168,76,0.12)',
+    divider: '1px solid rgba(201,168,76,0.08)',
+    leftBorder: '1px solid rgba(201,168,76,0.08)',
+    panelBg: 'rgba(255,255,255,0.025)',
+    settingsBorder: '1px solid rgba(42,63,106,0.5)',
+    settingsBg: 'rgba(255,255,255,0.02)',
+    cardSelBg: 'rgba(201,168,76,0.1)',
+    cardSelBorder: 'rgba(201,168,76,0.5)',
+    cardUnselBg: 'rgba(255,255,255,0.025)',
+    cardUnselBorder: 'rgba(42,63,106,0.6)',
+    cardSelTitleColor: '#ddc98a',
+    cardUnselTitleColor: '#5a7a9a',
+    cardSubColor: '#3a6080',
+    cardSubSelColor: '#8a7a5a',
+    slotMe: 'rgba(201,168,76,0.06)',
+    slotMeBorder: 'rgba(201,168,76,0.3)',
+    slotBot: 'rgba(255,255,255,0.025)',
+    slotBotBorder: 'rgba(90,60,140,0.4)',
+    slotFilled: 'rgba(255,255,255,0.025)',
+    slotFilledBorder: 'rgba(42,63,106,0.7)',
+    slotEmpty: 'rgba(255,255,255,0.01)',
+    slotEmptyBorder: 'rgba(20,35,60,0.8)',
+    slotEmptyText: '#1a2e48',
+    nameMe: '#ddc98a',
+    nameBot: '#9a80c0',
+    nameFilled: '#b0c8e0',
+    nameEmpty: '#1a2e48',
+    tagMe: '#c9a84c',
+    tagHost: '#4a6a8a',
+    settingLabel: '#8ab4d0',
+    settingNote: '#3a6080',
+    addBotBg: 'rgba(90,60,140,0.08)',
+    addBotBorder: 'rgba(90,60,140,0.3)',
+    addBotText: '#6a4a9a',
+    addBotHoverBg: 'rgba(90,60,140,0.15)',
+    removeBotText: '#4a3a6a',
+    removeBotBorder: 'rgba(90,60,140,0.3)',
+    advBtnColor: (on: boolean) => on ? '#c9a84c' : '#3a6080',
+    footerBorder: '1px solid rgba(201,168,76,0.1)',
+    footerStatus: '#3a6080',
+    readyOnBg: 'rgba(231,76,60,0.12)',
+    readyOnBorder: 'rgba(231,76,60,0.4)',
+    readyOnText: '#e05555',
+    readyOffBg: 'rgba(39,174,96,0.12)',
+    readyOffBorder: 'rgba(39,174,96,0.4)',
+    readyOffText: '#2ecc71',
+    launchReadyBg: 'linear-gradient(135deg, #b8942a 0%, #8a6a18 100%)',
+    launchReadyBorder: 'rgba(201,168,76,0.4)',
+    launchReadyText: '#f5e8c0',
+    launchNotReadyBg: 'rgba(42,63,106,0.3)',
+    launchNotReadyBorder: 'rgba(42,63,106,0.4)',
+    launchNotReadyText: '#3a6080',
+    codeBoxBg: 'rgba(201,168,76,0.07)',
+    codeBoxBorder: '1px solid rgba(201,168,76,0.25)',
+    codeLabel: '#c9a84c',
+    codeValue: '#e8c870',
+    codeCopyBorder: 'rgba(201,168,76,0.35)',
+    codeCopyText: '#c9a84c',
+    privateLabel: '#2a4a6a',
+    glow: `radial-gradient(ellipse 50% 60% at 10% 80%, rgba(69,123,157,0.07) 0%, transparent 70%),
+           radial-gradient(ellipse 40% 40% at 90% 20%, rgba(201,168,76,0.05) 0%, transparent 60%)`,
+    sliderAccent: '#c9a84c',
+    sliderRange: '#1a2e48',
+    rangeLabelColor: '#2a4a6a',
+  };
+  return {
+    bg: 'linear-gradient(150deg, #f5ede0 0%, #ecdbc0 45%, #f0e4cc 100%)',
+    text: '#2a1808',
+    textMuted: '#7a5830',
+    textDim: '#5a4020',
+    title: '#5a3008',
+    accent: '#8a6010',
+    headerBorder: '1px solid rgba(139,100,40,0.18)',
+    divider: '1px solid rgba(139,100,40,0.12)',
+    leftBorder: '1px solid rgba(139,100,40,0.12)',
+    panelBg: 'rgba(255,255,255,0.4)',
+    settingsBorder: '1px solid rgba(139,100,40,0.3)',
+    settingsBg: 'rgba(255,255,255,0.3)',
+    cardSelBg: 'rgba(139,100,40,0.1)',
+    cardSelBorder: 'rgba(139,100,40,0.5)',
+    cardUnselBg: 'rgba(255,255,255,0.4)',
+    cardUnselBorder: 'rgba(139,100,40,0.22)',
+    cardSelTitleColor: '#5a3008',
+    cardUnselTitleColor: '#7a5030',
+    cardSubColor: '#7a5030',
+    cardSubSelColor: '#6a4820',
+    slotMe: 'rgba(139,100,40,0.06)',
+    slotMeBorder: 'rgba(139,100,40,0.3)',
+    slotBot: 'rgba(255,255,255,0.35)',
+    slotBotBorder: 'rgba(90,60,140,0.35)',
+    slotFilled: 'rgba(255,255,255,0.35)',
+    slotFilledBorder: 'rgba(139,100,40,0.25)',
+    slotEmpty: 'rgba(255,255,255,0.2)',
+    slotEmptyBorder: 'rgba(139,100,40,0.15)',
+    slotEmptyText: '#7a6040',
+    nameMe: '#5a3008',
+    nameBot: '#7a5090',
+    nameFilled: '#3a2010',
+    nameEmpty: '#7a6040',
+    tagMe: '#8a6010',
+    tagHost: '#6a4820',
+    settingLabel: '#3a2010',
+    settingNote: '#6a5030',
+    addBotBg: 'rgba(90,60,140,0.06)',
+    addBotBorder: 'rgba(90,60,140,0.25)',
+    addBotText: '#7a50a0',
+    addBotHoverBg: 'rgba(90,60,140,0.12)',
+    removeBotText: '#6a50a0',
+    removeBotBorder: 'rgba(90,60,140,0.3)',
+    advBtnColor: (on: boolean) => on ? '#8a6010' : '#6a5030',
+    footerBorder: '1px solid rgba(139,100,40,0.15)',
+    footerStatus: '#6a5030',
+    readyOnBg: 'rgba(180,40,40,0.1)',
+    readyOnBorder: 'rgba(180,40,40,0.35)',
+    readyOnText: '#b83030',
+    readyOffBg: 'rgba(39,130,70,0.1)',
+    readyOffBorder: 'rgba(39,130,70,0.35)',
+    readyOffText: '#2a8040',
+    launchReadyBg: 'linear-gradient(135deg, #b8942a 0%, #8a6a18 100%)',
+    launchReadyBorder: 'rgba(139,100,40,0.4)',
+    launchReadyText: '#f5e8c0',
+    launchNotReadyBg: 'rgba(139,100,40,0.1)',
+    launchNotReadyBorder: 'rgba(139,100,40,0.2)',
+    launchNotReadyText: '#8a7050',
+    codeBoxBg: 'rgba(139,100,40,0.07)',
+    codeBoxBorder: '1px solid rgba(139,100,40,0.25)',
+    codeLabel: '#8a6010',
+    codeValue: '#6a4808',
+    codeCopyBorder: 'rgba(139,100,40,0.35)',
+    codeCopyText: '#8a6010',
+    privateLabel: '#7a5830',
+    glow: `radial-gradient(ellipse 50% 60% at 10% 80%, rgba(200,150,80,0.08) 0%, transparent 70%),
+           radial-gradient(ellipse 40% 40% at 90% 20%, rgba(139,100,40,0.05) 0%, transparent 60%)`,
+    sliderAccent: '#8a6010',
+    sliderRange: '#c8b898',
+    rangeLabelColor: '#7a5830',
+  };
+}
+
+function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled: boolean }) {
+  const { dark } = useThemeStore();
+  return (
+    <button
+      disabled={disabled}
+      onClick={onChange}
+      style={{
+        width: 40, height: 22, borderRadius: 11, border: 'none',
+        background: on ? '#27ae60' : (dark ? 'rgba(42,63,106,0.8)' : 'rgba(139,100,40,0.15)'),
+        position: 'relative', flexShrink: 0,
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'background 0.2s',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 3,
+        left: on ? 20 : 3,
+        width: 16, height: 16, borderRadius: '50%',
+        background: '#fff',
+        transition: 'left 0.2s',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+      }} />
+    </button>
+  );
+}
+
 export function LobbyRoomScreen() {
   const { currentLobby } = useLobbyStore();
   const { myPlayerId } = usePlayerStore();
+  const { dark, toggle } = useThemeStore();
+  const th = makeTheme(dark);
   const [availableMaps, setAvailableMaps] = useState<MapMeta[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     socket.emit('lobby:maps', (res) => {
@@ -30,185 +207,453 @@ export function LobbyRoomScreen() {
   const allReady = occupied.length >= 2 && occupied.every((s) => s.ready);
   const privateCode = settings.private ? settings.privateCode : null;
 
-  function changeMap(mapId: string) {
-    socket.emit('lobby:settings', { lobbyId: id, settings: { mapTemplateId: mapId } });
-  }
-
-  const selectedMap = availableMaps.find((m) => m.id === settings.mapTemplateId);
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(160deg, #0f2040 0%, #1a3560 100%)',
+      background: th.bg,
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
+      flexDirection: 'column',
+      fontFamily: "'Crimson Pro', Georgia, serif",
+      color: th.text,
+      overflow: 'hidden',
     }}>
-      <div style={{ width: '100%', maxWidth: 520 }}>
-        <h2 style={{ color: '#f1c40f', marginBottom: 4, fontSize: 22 }}>Lobby #{id}</h2>
-        <p style={{ color: '#7a90b0', fontSize: 12, marginBottom: 20, marginTop: 0 }}>
-          {settings.private ? 'Private room' : 'Public room'}
-          {settings.timerEnabled ? ' · Timer on' : ''}
-        </p>
+      {/* Ambient glow */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        background: th.glow,
+      }} />
 
-        {/* Private code */}
+      {/* ── HEADER ── */}
+      <div style={{
+        borderBottom: th.headerBorder,
+        padding: '20px 44px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 20,
+        position: 'relative',
+        zIndex: 1,
+        flexShrink: 0,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{
+            fontFamily: "'Cinzel', Georgia, serif",
+            fontSize: 22,
+            fontWeight: 900,
+            color: th.title,
+            letterSpacing: 1,
+          }}>
+            OpenSettlers
+          </div>
+          <div style={{ fontSize: 12, color: th.privateLabel, marginTop: 2, fontStyle: 'italic' }}>
+            {settings.private ? '🔒 Private room' : '🌐 Public room'}
+            {settings.timerEnabled ? ' · Timer on' : ''}
+            {' · '}
+            <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>#{id}</span>
+          </div>
+        </div>
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{
+            background: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+            border: `1px solid ${dark ? 'rgba(255,255,255,0.12)' : 'rgba(139,100,40,0.2)'}`,
+            borderRadius: 8,
+            padding: '5px 10px',
+            cursor: 'pointer',
+            fontSize: 15,
+            lineHeight: 1,
+            color: th.accent,
+            flexShrink: 0,
+          }}
+        >
+          {dark ? '☀️' : '🌙'}
+        </button>
+
         {isHost && privateCode && (
           <div style={{
-            background: '#16213e', border: '1px solid #457b9d', borderRadius: 8,
-            padding: 12, marginBottom: 16,
+            background: th.codeBoxBg,
+            border: th.codeBoxBorder,
+            borderRadius: 10,
+            padding: '8px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
           }}>
-            <div style={{ color: '#aac4f4', fontSize: 12, marginBottom: 4 }}>Room Code</div>
-            <div style={{ fontSize: 28, fontWeight: 'bold', letterSpacing: 8, color: '#f4a261' }}>{privateCode}</div>
+            <div>
+              <div style={{ fontSize: 9, color: th.codeLabel, letterSpacing: 3, fontFamily: "'Cinzel', serif", textTransform: 'uppercase' }}>Room Code</div>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 8, color: th.codeValue, fontFamily: 'monospace', lineHeight: 1.2 }}>
+                {privateCode}
+              </div>
+            </div>
             <button
-              style={{ marginTop: 6, background: '#457b9d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer', fontSize: 12 }}
               onClick={() => navigator.clipboard.writeText(privateCode)}
+              style={{
+                background: 'transparent', border: `1px solid ${th.codeCopyBorder}`,
+                color: th.codeCopyText, borderRadius: 6, padding: '4px 12px',
+                cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+              }}
             >
               Copy
             </button>
           </div>
         )}
+      </div>
 
-        {/* Map selector */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ color: '#aac4f4', fontSize: 12, fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Map
+      {/* ── MAIN CONTENT ── */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        overflow: 'hidden',
+        position: 'relative',
+        zIndex: 1,
+      }}>
+        {/* LEFT — Players */}
+        <div style={{
+          width: 340,
+          borderRight: th.leftBorder,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '28px 28px',
+          overflowY: 'auto',
+          flexShrink: 0,
+        }}>
+          <div style={{
+            fontSize: 10, letterSpacing: 4, color: th.accent,
+            textTransform: 'uppercase',
+            fontFamily: "'Cinzel', Georgia, serif",
+            marginBottom: 4,
+          }}>
+            Players
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {availableMaps.map((map) => {
-              const selected = settings.mapTemplateId === map.id;
+          <div style={{ fontSize: 12, color: th.textDim, fontStyle: 'italic', marginBottom: 20 }}>
+            {occupied.length} / {settings.maxPlayers} joined
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            {slots.map((slot, i) => {
+              const clr = COLOR_CSS[slot.color ?? 'blue'] ?? '#457b9d';
+              const isMe = slot.playerId === myPlayerId;
+              const isHostSlot = slot.playerId === hostPlayerId;
+              const filled = !!slot.playerId;
+
+              const bg = filled
+                ? isMe ? th.slotMe : slot.isBot ? th.slotBot : th.slotFilled
+                : th.slotEmpty;
+              const border = filled
+                ? isMe ? th.slotMeBorder : slot.isBot ? th.slotBotBorder : th.slotFilledBorder
+                : th.slotEmptyBorder;
+
               return (
-                <button
-                  key={map.id}
-                  disabled={!isHost}
-                  onClick={() => changeMap(map.id)}
-                  style={{
-                    background: selected ? '#f4a261' : '#16213e',
-                    color: selected ? '#fff' : '#aac4f4',
-                    border: `2px solid ${selected ? '#f4a261' : '#2a3f6a'}`,
-                    borderRadius: 8,
-                    padding: '8px 14px',
-                    cursor: isHost ? 'pointer' : 'default',
-                    fontSize: 13,
-                    fontWeight: selected ? 700 : 400,
-                    transition: 'background 0.15s, border-color 0.15s',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{map.name}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2 }}>
-                    {map.playerCounts[0]}–{map.playerCounts[map.playerCounts.length - 1]} players
+                <div key={i} style={{
+                  background: bg,
+                  border: `1px solid ${border}`,
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  transition: 'border-color 0.15s',
+                }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: filled ? clr : (dark ? '#1a2a3a' : '#d0c0a8'),
+                    border: `2px solid ${filled ? clr + '66' : (dark ? '#0f1a2a' : '#c0a888')}`,
+                    boxShadow: filled ? `0 0 8px ${clr}44` : 'none',
+                    flexShrink: 0,
+                    transition: 'all 0.2s',
+                  }} />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 14,
+                      color: filled
+                        ? isMe ? th.nameMe : slot.isBot ? th.nameBot : th.nameFilled
+                        : th.nameEmpty,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      fontWeight: filled ? 600 : 400,
+                    }}>
+                      {slot.isBot && <span style={{ fontSize: 12 }}>🤖</span>}
+                      {filled ? (slot.name ?? 'Unknown') : <em style={{ fontStyle: 'italic', fontSize: 13 }}>Empty</em>}
+                    </div>
+                    <div style={{ fontSize: 11, color: th.textDim, marginTop: 1, display: 'flex', gap: 6 }}>
+                      {isMe && <span style={{ color: th.tagMe }}>you</span>}
+                      {isHostSlot && !slot.isBot && <span style={{ color: th.tagHost }}>👑 host</span>}
+                    </div>
                   </div>
-                </button>
+
+                  {slot.isBot && isHost ? (
+                    <button
+                      onClick={() => socket.emit('lobby:remove_bot', { lobbyId: id, playerId: slot.playerId! }, () => {})}
+                      style={{
+                        background: 'transparent',
+                        color: th.removeBotText,
+                        border: `1px solid ${th.removeBotBorder}`,
+                        borderRadius: 6, padding: '2px 10px',
+                        cursor: 'pointer', fontSize: 11,
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      Remove
+                    </button>
+                  ) : filled ? (
+                    <div style={{
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: slot.ready ? 'rgba(39,174,96,0.15)' : 'rgba(231,76,60,0.1)',
+                      border: `1.5px solid ${slot.ready ? '#27ae60' : '#e74c3c'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12,
+                      flexShrink: 0,
+                    }}>
+                      {slot.ready ? '✓' : '○'}
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
           </div>
-          {!isHost && selectedMap && (
-            <div style={{ color: '#7a90b0', fontSize: 11, marginTop: 6 }}>
-              {selectedMap.name} · set by host
-            </div>
+
+          {isHost && slots.some((s) => !s.playerId) && (
+            <button
+              onClick={() => socket.emit('lobby:add_bot', { lobbyId: id }, () => {})}
+              style={{
+                marginTop: 10,
+                background: th.addBotBg,
+                color: th.addBotText,
+                border: `1px dashed ${th.addBotBorder}`,
+                borderRadius: 10,
+                padding: '10px 16px',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                width: '100%',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = th.addBotHoverBg; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = th.addBotBg; }}
+            >
+              🤖 Add Bot
+            </button>
           )}
         </div>
 
-        {/* Player slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {slots.map((slot, i) => {
-            const slotColor = slot.color ? (COLOR_MAP[slot.color] ?? '#aaa') : '#333';
-            return (
-              <div
-                key={i}
-                style={{
-                  background: '#16213e',
-                  border: `1px solid ${slot.playerId ? (slot.isBot ? '#3a3060' : '#2a4a7a') : '#1e2e4a'}`,
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <div style={{
-                  width: 14, height: 14, borderRadius: '50%',
-                  background: slotColor,
-                  border: '1.5px solid rgba(255,255,255,0.25)',
-                  flexShrink: 0,
-                }} />
-                <span style={{ flex: 1, color: slot.playerId ? (slot.isBot ? '#9a80c0' : '#d0dff5') : '#3a4a6a', fontSize: 13 }}>
-                  {slot.playerId
-                    ? <>{slot.isBot ? '🤖 ' : ''}{slot.name ?? 'Unknown'}</>
-                    : <em>Empty</em>}
-                  {slot.playerId === myPlayerId && <span style={{ color: '#7a90b0', fontSize: 11 }}> (you)</span>}
-                  {slot.playerId === hostPlayerId && !slot.isBot && ' 👑'}
-                </span>
-                {slot.isBot && isHost ? (
+        {/* RIGHT — Settings */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '28px 36px',
+          overflowY: 'auto',
+        }}>
+          {/* Map selector */}
+          <div style={{ marginBottom: 32 }}>
+            <div style={{
+              fontSize: 10, letterSpacing: 4, color: th.accent,
+              textTransform: 'uppercase',
+              fontFamily: "'Cinzel', Georgia, serif",
+              marginBottom: 16,
+            }}>
+              Map
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {availableMaps.map((map) => {
+                const sel = settings.mapTemplateId === map.id;
+                const sizeLabel: Record<string, string> = { standard: '19 tiles', large: '30 tiles', huge: '37 tiles' };
+                return (
                   <button
-                    onClick={() => socket.emit('lobby:remove_bot', { lobbyId: id, playerId: slot.playerId! }, () => {})}
+                    key={map.id}
+                    disabled={!isHost}
+                    onClick={() => socket.emit('lobby:settings', { lobbyId: id, settings: { mapTemplateId: map.id } })}
                     style={{
-                      background: 'transparent', color: '#6a5a8a', border: '1px solid #3a3060',
-                      borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11,
+                      background: sel ? th.cardSelBg : th.cardUnselBg,
+                      border: `1.5px solid ${sel ? th.cardSelBorder : th.cardUnselBorder}`,
+                      borderRadius: 12,
+                      padding: '14px 20px',
+                      cursor: isHost ? 'pointer' : 'default',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                      minWidth: 120,
                     }}
                   >
-                    Remove
+                    <div style={{
+                      fontSize: 15, fontWeight: 700,
+                      color: sel ? th.cardSelTitleColor : th.cardUnselTitleColor,
+                      fontFamily: "'Cinzel', Georgia, serif",
+                      letterSpacing: 0.5,
+                    }}>
+                      {(map.name.split('(')[0] ?? map.name).trim()}
+                    </div>
+                    <div style={{ fontSize: 11, color: sel ? th.cardSubSelColor : th.cardSubColor, marginTop: 4, fontStyle: 'italic' }}>
+                      {map.playerCounts[0]}–{map.playerCounts[map.playerCounts.length - 1]} players · {sizeLabel[map.id] ?? ''}
+                    </div>
                   </button>
-                ) : slot.playerId ? (
-                  <span style={{ color: slot.ready ? '#2ecc71' : '#e74c3c', fontSize: 12, fontWeight: 600 }}>
-                    {slot.ready ? '✓' : '○'}
-                  </span>
-                ) : null}
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Advanced settings */}
+          <div>
+            <button
+              onClick={() => setShowAdvanced((v) => !v)}
+              style={{
+                background: 'transparent',
+                color: th.advBtnColor(showAdvanced),
+                border: 'none', padding: '4px 0',
+                cursor: 'pointer',
+                fontSize: 10, letterSpacing: 4,
+                textTransform: 'uppercase',
+                fontFamily: "'Cinzel', Georgia, serif",
+                display: 'flex', alignItems: 'center', gap: 8,
+                transition: 'color 0.15s',
+              }}
+            >
+              <span style={{
+                display: 'inline-block',
+                transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0)',
+                transition: 'transform 0.15s',
+                fontSize: 10,
+              }}>▶</span>
+              Advanced Settings
+            </button>
+
+            {showAdvanced && (
+              <div style={{
+                marginTop: 16,
+                background: th.settingsBg,
+                border: th.settingsBorder,
+                borderRadius: 14,
+                padding: '22px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 20,
+              }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Bank Resources</div>
+                      <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
+                        Stock per resource type
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: 24, fontWeight: 800, color: th.accent,
+                      fontFamily: "'Cinzel', Georgia, serif",
+                      minWidth: 36, textAlign: 'right',
+                    }}>
+                      {settings.bankResourceCount}
+                    </div>
+                  </div>
+                  <input
+                    type="range" min={10} max={30} step={1}
+                    value={settings.bankResourceCount}
+                    disabled={!isHost}
+                    onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
+                    style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 4 }}>
+                    <span>10</span><span>19 standard</span><span>30</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Balanced Dice</div>
+                    <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
+                      Flattens the bell curve — extreme rolls more likely
+                    </div>
+                  </div>
+                  <Toggle
+                    on={settings.balancedDice}
+                    onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { balancedDice: !settings.balancedDice } })}
+                    disabled={!isHost}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: th.settingLabel, fontWeight: 600 }}>Friendly Robber</div>
+                    <div style={{ fontSize: 11, color: th.settingNote, fontStyle: 'italic', marginTop: 2 }}>
+                      Robber can't target players with ≤ 3 VP
+                    </div>
+                  </div>
+                  <Toggle
+                    on={settings.friendlyRobber}
+                    onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { friendlyRobber: !settings.friendlyRobber } })}
+                    disabled={!isHost}
+                  />
+                </div>
               </div>
-            );
-          })}
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div style={{
+        borderTop: th.footerBorder,
+        padding: '18px 44px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 12,
+        position: 'relative',
+        zIndex: 1,
+        flexShrink: 0,
+      }}>
+        <div style={{ flex: 1, fontSize: 12, color: th.footerStatus, fontStyle: 'italic' }}>
+          {allReady
+            ? '✓ All players ready'
+            : `${occupied.filter((s) => s.ready).length}/${occupied.length} ready`}
         </div>
 
-        {/* Add Bot button (host only, while slots available) */}
-        {isHost && slots.some((s) => !s.playerId) && (
+        {mySlot && (
           <button
-            onClick={() => socket.emit('lobby:add_bot', { lobbyId: id }, () => {})}
+            onClick={() => socket.emit('lobby:ready', { lobbyId: id, ready: !mySlot.ready })}
             style={{
-              background: '#1a1a3a', color: '#9a80c0',
-              border: '1px dashed #3a3060', borderRadius: 8,
-              padding: '8px 16px', cursor: 'pointer', fontSize: 13,
-              marginBottom: 16, width: '100%', textAlign: 'left',
+              background: mySlot.ready ? th.readyOnBg : th.readyOffBg,
+              border: `1px solid ${mySlot.ready ? th.readyOnBorder : th.readyOffBorder}`,
+              color: mySlot.ready ? th.readyOnText : th.readyOffText,
+              borderRadius: 10,
+              padding: '10px 24px',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "'Cinzel', Georgia, serif",
+              letterSpacing: 0.5,
+              transition: 'all 0.15s',
             }}
           >
-            + Add Bot
+            {mySlot.ready ? 'Not Ready' : '✓ Ready'}
           </button>
         )}
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          {mySlot && (
-            <button
-              style={{
-                background: mySlot.ready ? '#c0392b' : '#27ae60',
-                color: '#fff', border: 'none', borderRadius: 8,
-                padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-              }}
-              onClick={() => socket.emit('lobby:ready', { lobbyId: id, ready: !mySlot.ready })}
-            >
-              {mySlot.ready ? 'Not Ready' : 'Ready!'}
-            </button>
-          )}
-          {isHost && (
-            <button
-              disabled={!allReady}
-              style={{
-                background: allReady ? '#f4a261' : '#2a3a5a',
-                color: allReady ? '#fff' : '#4a5a7a',
-                border: 'none', borderRadius: 8,
-                padding: '10px 22px',
-                cursor: allReady ? 'pointer' : 'not-allowed',
-                fontWeight: 700, fontSize: 14,
-                transition: 'background 0.15s',
-              }}
-              onClick={() => socket.emit('lobby:start', { lobbyId: id }, (res) => {
-                if (!res.ok) alert(res.message);
-              })}
-            >
-              🚀 Start Game
-            </button>
-          )}
-        </div>
+        {isHost && (
+          <button
+            disabled={!allReady}
+            onClick={() => socket.emit('lobby:start', { lobbyId: id }, (res) => {
+              if (!res.ok) alert(res.message);
+            })}
+            style={{
+              background: allReady ? th.launchReadyBg : th.launchNotReadyBg,
+              border: `1px solid ${allReady ? th.launchReadyBorder : th.launchNotReadyBorder}`,
+              color: allReady ? th.launchReadyText : th.launchNotReadyText,
+              borderRadius: 10,
+              padding: '10px 28px',
+              cursor: allReady ? 'pointer' : 'not-allowed',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "'Cinzel', Georgia, serif",
+              letterSpacing: 0.5,
+              boxShadow: allReady ? '0 4px 20px rgba(184,148,42,0.25)' : 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            ⚓ Launch Game
+          </button>
+        )}
       </div>
     </div>
   );

@@ -57,7 +57,9 @@ export interface MapTemplate {
   hexes: Array<{ coord: CubeCoord; terrain: TerrainType | null }>;
   /** Number token pool placed in spiral order (skip desert) */
   numberTokens: number[];
-  /** Fixed port assignments by edge key */
-  ports: Array<{ type: PortType; edgeKey: EdgeKey }>;
+  /** Fixed port assignments by edge key (use for standard map) */
+  ports?: Array<{ type: PortType; edgeKey: EdgeKey }>;
+  /** Port type pool — if provided, ports are randomly distributed per game */
+  portTypes?: PortType[];
   playerCounts: number[];
 }

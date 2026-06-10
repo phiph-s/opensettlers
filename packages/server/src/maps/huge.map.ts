@@ -1,6 +1,5 @@
 import { cubeSpiral } from '@opensettlers/shared';
 import type { MapTemplate, PortType } from '@opensettlers/shared';
-import { distributePorts } from './portUtils.js';
 
 /**
  * Huge map — 7 hexes wide, 37 land hexes.
@@ -45,6 +44,6 @@ export const HUGE_MAP: MapTemplate = {
     terrain: (TERRAIN_POOL[i] ?? 'desert') as import('@opensettlers/shared').TerrainType,
   })),
   numberTokens: NUMBER_TOKENS,
-  ports: distributePorts(HEX_COORDS, PORT_TYPES),
+  portTypes: PORT_TYPES,
   playerCounts: [5, 6],
 };

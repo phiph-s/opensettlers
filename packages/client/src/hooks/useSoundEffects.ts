@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { GameState } from '@opensettlers/shared';
 import { socket } from '../socket.js';
-import { playResourceGain, playYourTurn, playRobber, playPiecePlaced } from '../sounds/soundEngine.js';
+import { playResourceGain, playYourTurn, playRobber, playPiecePlaced, playTradeProposed, playTriumph } from '../sounds/soundEngine.js';
 
 export function useSoundEffects(gameState: GameState | null, myPlayerId: string | null): void {
   const prevPhaseRef = useRef<string | null>(null);
   const prevActiveIdRef = useRef<string | null>(null);
+  const prevLongestRoadOwnerRef = useRef<string | null>(null);
+  const prevLargestArmyOwnerRef = useRef<string | null>(null);
   const initialized = useRef(false);
 
   // Resource gain: socket event
@@ -23,6 +25,15 @@ export function useSoundEffects(gameState: GameState | null, myPlayerId: string 
     return () => { socket.off('game:building_placed', playPiecePlaced); };
   }, []);
 
+  // Trade proposed: play for all players except the proposer
+  useEffect(() => {
+    const handler = (offer: { fromPlayerId: string }) => {
+      if (offer.fromPlayerId !== myPlayerId) playTradeProposed();
+    };
+    socket.on('game:trade_proposed', handler);
+    return () => { socket.off('game:trade_proposed', handler); };
+  }, [myPlayerId]);
+
   // Your turn + robber: watch state transitions
   useEffect(() => {
     if (!gameState) return;
@@ -34,6 +45,8 @@ export function useSoundEffects(gameState: GameState | null, myPlayerId: string 
     if (!initialized.current) {
       prevPhaseRef.current = phase;
       prevActiveIdRef.current = activeId;
+      prevLongestRoadOwnerRef.current = gameState.longestRoadOwner;
+      prevLargestArmyOwnerRef.current = gameState.largestArmyOwner;
       initialized.current = true;
       return;
     }
@@ -56,7 +69,17 @@ export function useSoundEffects(gameState: GameState | null, myPlayerId: string 
       playYourTurn();
     }
 
+    // Achievement awarded: longest road or largest army changed to a new owner
+    if (gameState.longestRoadOwner && gameState.longestRoadOwner !== prevLongestRoadOwnerRef.current) {
+      playTriumph();
+    }
+    if (gameState.largestArmyOwner && gameState.largestArmyOwner !== prevLargestArmyOwnerRef.current) {
+      playTriumph();
+    }
+
     prevPhaseRef.current = phase;
     prevActiveIdRef.current = activeId;
+    prevLongestRoadOwnerRef.current = gameState.longestRoadOwner;
+    prevLargestArmyOwnerRef.current = gameState.largestArmyOwner;
   });
 }

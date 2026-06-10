@@ -47,10 +47,10 @@ export function TurnPhaseBar({ gameState, myPlayerId, validMoves, onLeave }: Pro
       flexWrap: 'wrap',
     }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ color: 'var(--ui-topbar-text)', fontSize: 12 }}>Phase: </span>
-        <strong style={{ color: 'var(--ui-topbar-strong)' }}>{PHASE_LABELS[phase] ?? phase}</strong>
-        <span style={{ color: 'var(--ui-topbar-text)', fontSize: 12 }}>| Active: </span>
-        <strong style={{ color: 'var(--ui-topbar-strong)' }}>{activePlayer?.name ?? '?'}</strong>
+        <span style={{ color: 'var(--ui-topbar-text)', fontSize: 11, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>Phase: </span>
+        <strong style={{ color: 'var(--ui-topbar-strong)', fontFamily: "'Cinzel', Georgia, serif", fontSize: 13 }}>{PHASE_LABELS[phase] ?? phase}</strong>
+        <span style={{ color: 'var(--ui-topbar-text)', fontSize: 11, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>| Active: </span>
+        <strong style={{ color: 'var(--ui-topbar-strong)', fontFamily: "'Cinzel', Georgia, serif", fontSize: 13 }}>{activePlayer?.name ?? '?'}</strong>
         {isMe && <span style={{ color: '#ffd270', fontSize: 12 }}>(you)</span>}
         {diceRoll && (
           <span style={{ marginLeft: 8, fontSize: 18, color: 'var(--ui-topbar-strong)' }}>

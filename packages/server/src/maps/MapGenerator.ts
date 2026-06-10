@@ -8,6 +8,7 @@ import {
 import { STANDARD_MAP } from './standard.map.js';
 import { LARGE_MAP } from './large.map.js';
 import { HUGE_MAP } from './huge.map.js';
+import { distributePorts } from './portUtils.js';
 import type {
   CubeCoord,
   Edge,
@@ -180,8 +181,14 @@ export function buildBoard(template: MapTemplate, rng: () => number): GameBoard 
     vertex.adjacentVertexKeys = Array.from(neighborSet);
   }
 
+  // Resolve port definitions — either fixed or randomly distributed
+  const resolvedPorts: Array<{ type: PortType; edgeKey: string }> =
+    template.portTypes
+      ? distributePorts(template.hexes.map((h) => h.coord), shuffle(template.portTypes, rng))
+      : (template.ports ?? []);
+
   // Assign ports to vertices using direct vertex key computation
-  for (const portDef of template.ports) {
+  for (const portDef of resolvedPorts) {
     const [hkA, hkB] = portDef.edgeKey.split('|') as [string, string];
     const landHk = landHexKeys.has(hkA) ? hkA : hkB;
     const seaHk = landHk === hkA ? hkB : hkA;

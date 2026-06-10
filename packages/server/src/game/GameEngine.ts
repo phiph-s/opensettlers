@@ -129,7 +129,7 @@ export class GameEngine {
       pendingDiscards: {},
       robberCandidates: [],
       lastPlacedSettlementKey: null,
-      bank: { wood: 19, brick: 19, wheat: 19, sheep: 19, ore: 19 },
+      bank: { wood: settings.bankResourceCount, brick: settings.bankResourceCount, wheat: settings.bankResourceCount, sheep: settings.bankResourceCount, ore: settings.bankResourceCount },
     };
   }
 
@@ -163,6 +163,22 @@ export class GameEngine {
     const player = this.state.players.find((p) => p.id === playerId);
     if (player) player.isConnected = connected;
     this.broadcastState();
+  }
+
+  private rollBalancedDice(): [number, number] {
+    // Flatter distribution: reduce 7 dominance, boost extreme numbers
+    const weights = [0, 0, 2, 3, 4, 4, 5, 4, 5, 4, 4, 3, 2];
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    let sum = 7;
+    for (let i = 2; i <= 12; i++) {
+      r -= weights[i]!;
+      if (r <= 0) { sum = i; break; }
+    }
+    const d1min = Math.max(1, sum - 6);
+    const d1max = Math.min(6, sum - 1);
+    const d1 = d1min + Math.floor(Math.random() * (d1max - d1min + 1));
+    return [d1, sum - d1];
   }
 
   private returnCostToBank(cost: Partial<Record<Resource, number>>): void {
@@ -338,8 +354,7 @@ export class GameEngine {
     if (this.state.phase !== 'PRE_ROLL' && this.state.phase !== 'ROLL') return 'Cannot roll now';
     if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
 
-    const d1 = Math.ceil(Math.random() * 6);
-    const d2 = Math.ceil(Math.random() * 6);
+    const [d1, d2] = this.settings.balancedDice ? this.rollBalancedDice() : [Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)] as [number, number];
     const roll = d1 + d2;
     this.state.diceRoll = [d1, d2];
 
@@ -401,6 +416,20 @@ export class GameEngine {
 
   handleMoveRobber(playerId: string, hexCoord: CubeCoord): string | null {
     if (!canMoveRobberTo(this.state, playerId, hexCoord)) return 'Invalid robber placement';
+
+    if (this.settings.friendlyRobber) {
+      const hk = cubeKey(hexCoord);
+      const buildingOwners = Object.values(this.state.board.vertices)
+        .filter((v) => v.adjacentHexKeys.includes(hk) && v.building && v.building.owner !== playerId)
+        .map((v) => v.building!.owner);
+      if (buildingOwners.length > 0) {
+        const allLowVP = buildingOwners.every((pid) => {
+          const p = this.state.players.find((pl) => pl.id === pid);
+          return p && p.victoryPoints <= 3;
+        });
+        if (allLowVP) return 'Friendly robber: cannot target only players with ≤ 3 VP';
+      }
+    }
 
     // Clear old robber
     for (const hex of Object.values(this.state.board.hexes)) {

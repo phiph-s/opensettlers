@@ -1,10 +1,9 @@
 import type { CubeCoord, MapTemplate, PortType } from '@opensettlers/shared';
-import { distributePorts } from './portUtils.js';
 
 /**
  * Large map — 6 hexes wide, 30 land hexes.
  * 7-row elongated hexagonal shape:
- *   r=-3:  3 hexes  (q: 0..2)
+ *   r=-3:  3 hexes  (q: 1..3)
  *   r=-2:  4 hexes  (q: 0..3)
  *   r=-1:  5 hexes  (q:-1..3)
  *   r= 0:  6 hexes  (q:-2..3)  ← widest row
@@ -14,7 +13,7 @@ import { distributePorts } from './portUtils.js';
  */
 function makeHexes(): CubeCoord[] {
   const rows = [
-    { r: -3, qMin:  0, qMax: 2 },
+    { r: -3, qMin:  1, qMax: 3 },
     { r: -2, qMin:  0, qMax: 3 },
     { r: -1, qMin: -1, qMax: 3 },
     { r:  0, qMin: -2, qMax: 3 },
@@ -66,6 +65,6 @@ export const LARGE_MAP: MapTemplate = {
     terrain: (TERRAIN_POOL[i] ?? 'desert') as import('@opensettlers/shared').TerrainType,
   })),
   numberTokens: NUMBER_TOKENS,
-  ports: distributePorts(HEX_COORDS, PORT_TYPES),
+  portTypes: PORT_TYPES,
   playerCounts: [4, 5, 6],
 };

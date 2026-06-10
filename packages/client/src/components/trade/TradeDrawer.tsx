@@ -96,7 +96,7 @@ export function TradeDrawer({ gameState, me, portRates, isMyTurn }: Props) {
       </div>
       {tab === 'maritime'
         ? <MaritimeTab me={me} portRates={portRates} />
-        : <PlayerTradeTab me={me} isMyTurn={isMyTurn} />
+        : <PlayerTradeTab me={me} isMyTurn={isMyTurn} players={players} />
       }
     </div>
   );
@@ -224,7 +224,7 @@ function MaritimeTab({ me, portRates }: { me: Player; portRates: Partial<Record<
   );
 }
 
-function PlayerTradeTab({ me, isMyTurn }: { me: Player; isMyTurn: boolean }) {
+function PlayerTradeTab({ me, isMyTurn, players }: { me: Player; isMyTurn: boolean; players: Player[] }) {
   const [offering, setOffering] = useState<Partial<Record<Resource, number>>>({});
   const [requesting, setRequesting] = useState<Partial<Record<Resource, number>>>({});
 
@@ -240,7 +240,22 @@ function PlayerTradeTab({ me, isMyTurn }: { me: Player; isMyTurn: boolean }) {
 
   const hasOffering = Object.values(offering).some((n) => (n ?? 0) > 0);
   const hasRequesting = Object.values(requesting).some((n) => (n ?? 0) > 0);
-  const canPropose = isMyTurn && hasOffering && hasRequesting;
+
+  const opponents = players.filter((p) => p.id !== me.id);
+  // For each requested resource, check at least one opponent has enough
+  const requestEntries = Object.entries(requesting).filter(([, n]) => (n ?? 0) > 0) as [Resource, number][];
+  const someoneCanFulfill = requestEntries.length === 0 || requestEntries.every(([res, amt]) =>
+    opponents.some((p) => (p.hand[res] ?? 0) >= amt)
+  );
+
+  const canPropose = isMyTurn && hasOffering && hasRequesting && someoneCanFulfill;
+  const proposeDisabledReason = !isMyTurn
+    ? 'Only active player can propose'
+    : !hasOffering || !hasRequesting
+    ? 'Select resources to offer and request'
+    : !someoneCanFulfill
+    ? 'No opponent has the requested resources'
+    : '';
 
   const propose = () => {
     socket.emit('game:propose_trade', { offering, requesting });
@@ -260,6 +275,7 @@ function PlayerTradeTab({ me, isMyTurn }: { me: Player; isMyTurn: boolean }) {
       />
       <button
         disabled={!canPropose}
+        title={proposeDisabledReason}
         style={{ ...btnStyle, marginTop: 8, background: canPropose ? '#457b9d' : '#333', color: canPropose ? '#fff' : '#666' }}
         onClick={propose}
       >{isMyTurn ? 'Propose Trade' : 'Only active player can propose'}</button>

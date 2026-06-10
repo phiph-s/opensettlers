@@ -51,7 +51,6 @@ export function DiceDisplay({ diceRoll, canRoll }: Props) {
 
   const d1 = diceRoll?.[0] ?? null;
   const d2 = diceRoll?.[1] ?? null;
-  const sum = d1 !== null && d2 !== null ? d1 + d2 : null;
 
   return (
     <div
@@ -74,13 +73,6 @@ export function DiceDisplay({ diceRoll, canRoll }: Props) {
           <Die value={d2 ?? 1} size={dieSize} glowing={canRoll} />
         </g>
       </svg>
-      {sum !== null && (
-        <div style={{
-          color: (sum === 6 || sum === 8) ? '#b91c1c' : '#2c2516',
-          fontWeight: 'bold',
-          fontSize: 18,
-        }}>{sum}</div>
-      )}
     </div>
   );
 }

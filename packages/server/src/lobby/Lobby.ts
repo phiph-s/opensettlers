@@ -33,6 +33,9 @@ export class Lobby {
       timerSeconds: { ...DEFAULT_TIMER_SECONDS, ...settings.timerSeconds },
       private: settings.private ?? false,
       privateCode: settings.private ? generateCode() : null,
+      bankResourceCount: settings.bankResourceCount ?? 19,
+      balancedDice: settings.balancedDice ?? false,
+      friendlyRobber: settings.friendlyRobber ?? false,
     };
     this.slots = Array.from({ length: this.settings.maxPlayers }, (_, i) => ({
       playerId: null,

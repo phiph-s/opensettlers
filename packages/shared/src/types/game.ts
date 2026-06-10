@@ -66,6 +66,9 @@ export interface LobbySettings {
   timerSeconds: TimerSettings;
   private: boolean;
   privateCode: string | null;
+  bankResourceCount: number;
+  balancedDice: boolean;
+  friendlyRobber: boolean;
 }
 
 export interface LobbySlot {
