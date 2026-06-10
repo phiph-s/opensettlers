@@ -52,6 +52,7 @@ export interface GameState {
   pendingDiscards: Record<string, number>;
   robberCandidates: string[];
   lastPlacedSettlementKey: string | null;
+  cloudOriginKeys: string[];
   bank: Record<import('./primitives.js').Resource, number>;
 }
 

@@ -71,7 +71,7 @@ export function canPlaceSettlementAt(
 ): boolean {
   if (state.phase === 'SETUP_PLACE_SETTLEMENT') {
     if (!isActivePlayer(state, playerId)) return false;
-    return validSetupVertices(state.board).includes(vertexKey);
+    return validSetupVertices(state.board, state.cloudOriginKeys).includes(vertexKey);
   }
   if (state.phase === 'BUILD_PHASE') {
     if (!isActivePlayer(state, playerId)) return false;

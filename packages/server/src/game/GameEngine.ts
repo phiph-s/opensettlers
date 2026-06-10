@@ -132,6 +132,7 @@ export class GameEngine {
       pendingDiscards: {},
       robberCandidates: [],
       lastPlacedSettlementKey: null,
+      cloudOriginKeys: mapTemplate.cloudedCoords?.map((coord) => cubeKey(coord)) ?? [],
       bank: { wood: settings.bankResourceCount, brick: settings.bankResourceCount, wheat: settings.bankResourceCount, sheep: settings.bankResourceCount, ore: settings.bankResourceCount },
     };
   }

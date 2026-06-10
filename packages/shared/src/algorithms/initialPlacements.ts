@@ -1,7 +1,8 @@
 import type { EdgeKey, GameBoard, VertexKey } from '../types/board.js';
 
 /** Returns all vertex keys valid for setup settlement placement */
-export function validSetupVertices(board: GameBoard): VertexKey[] {
+export function validSetupVertices(board: GameBoard, cloudOriginKeys?: string[]): VertexKey[] {
+  const cloudSet = cloudOriginKeys ? new Set(cloudOriginKeys) : null;
   return Object.values(board.vertices)
     .filter((v) => {
       // Must touch at least one non-sea hex
@@ -10,9 +11,11 @@ export function validSetupVertices(board: GameBoard): VertexKey[] {
         return hex && hex.terrain !== 'sea';
       });
       if (!touchesLand) return false;
-      // Cannot place adjacent to unrevealed cloud hexes during setup
-      const touchesClouds = v.adjacentHexKeys.some((hk) => board.hexes[hk]?.terrain === 'clouds');
-      if (touchesClouds) return false;
+      // Cannot place adjacent to cloud-origin hexes during setup (whether still clouded or revealed)
+      const touchesCloudZone = v.adjacentHexKeys.some(
+        (hk) => board.hexes[hk]?.terrain === 'clouds' || cloudSet?.has(hk)
+      );
+      if (touchesCloudZone) return false;
       // No existing building here
       if (v.building !== null) return false;
       // Distance rule: all adjacent vertices must be empty

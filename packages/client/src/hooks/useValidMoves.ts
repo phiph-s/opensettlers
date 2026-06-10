@@ -52,7 +52,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
     if (phase === 'SETUP_PLACE_SETTLEMENT' && isActive) {
       return {
         ...empty,
-        settlementVertices: new Set(validSetupVertices(board)),
+        settlementVertices: new Set(validSetupVertices(board, state.cloudOriginKeys)),
       };
     }
 
