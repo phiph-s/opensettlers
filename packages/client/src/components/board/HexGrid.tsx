@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import type { GameState, EdgeKey, HexKey, VertexKey, PortType } from '@opensettlers/shared';
 import { cubeKey, hexPolygonPoints, cubeToPixel } from '@opensettlers/shared';
 import { useBoardLayout } from '../../hooks/useBoardLayout.js';
+import { usePanZoom } from './PanZoomBoard.js';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { HexTile } from './HexTile.js';
 import { VertexSpot } from './VertexSpot.js';
@@ -27,6 +28,7 @@ interface Props {
 export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildModeChange }: Props) {
   const { board, phase } = gameState;
   const layout = useBoardLayout(board, 70);
+  const panZoom = usePanZoom();
 
   const playerColorMap = useMemo(
     () => Object.fromEntries(gameState.players.map((p) => [p.id, COLOR_HEX[p.color] ?? '#aaa'])),
@@ -121,9 +123,26 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
     return result;
   }, [board.vertices, board.hexes, layout]);
 
+  // Compute effective viewBox: manipulate directly instead of CSS scale (preserves SVG resolution)
+  let effectiveViewBox = layout.viewBox;
+  if (panZoom) {
+    const { transform: { x, y, scale }, containerRef } = panZoom;
+    const W = containerRef.current?.clientWidth ?? 0;
+    const H = containerRef.current?.clientHeight ?? 0;
+    if (W > 0 && H > 0) {
+      const parts = layout.viewBox.split(' ').map(Number);
+      const [nvx, nvy, nvw, nvh] = parts as [number, number, number, number];
+      const evw = nvw / scale;
+      const evh = nvh / scale;
+      const evx = nvx - x * nvw / (W * scale);
+      const evy = nvy - y * nvh / (H * scale);
+      effectiveViewBox = `${evx} ${evy} ${evw} ${evh}`;
+    }
+  }
+
   return (
     <svg
-      viewBox={layout.viewBox}
+      viewBox={effectiveViewBox}
       style={{ width: '100%', height: '100%' }}
     >
       <defs>
