@@ -302,7 +302,7 @@ export function LobbyListScreen() {
                 onChange={(e) => setMaxPlayers(Number(e.target.value))}
                 style={{ ...inputSt, cursor: 'pointer', marginTop: 0, padding: '9px 12px', background: th.selectBg }}
               >
-                {[2, 3, 4, 5, 6].map((n) => (
+                {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                   <option key={n} value={n}>{n} players</option>
                 ))}
               </select>

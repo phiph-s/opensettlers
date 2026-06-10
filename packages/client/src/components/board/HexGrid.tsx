@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import type { GameState, EdgeKey, HexKey, VertexKey, PortType } from '@opensettlers/shared';
-import { cubeKey, hexPolygonPoints } from '@opensettlers/shared';
+import { cubeKey, hexPolygonPoints, cubeToPixel } from '@opensettlers/shared';
 import { useBoardLayout } from '../../hooks/useBoardLayout.js';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { HexTile } from './HexTile.js';
@@ -74,15 +74,14 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   const activeId = gameState.players[gameState.activePlayerIndex]?.id;
   const canMoveRobber = isRobberPhase && activeId === myPlayerId;
 
-  // Group port vertices into pairs by proximity, render one marker per port at midpoint
-  // pushed outward from the board center (0,0) for visibility
+  // Group port vertices into pairs by proximity, place marker at center of adjacent sea hex
   const portMarkers = useMemo(() => {
-    const portVerts: Array<{ x: number; y: number; portType: PortType }> = [];
+    const portVerts: Array<{ x: number; y: number; portType: PortType; vk: string }> = [];
     for (const [vk, vertex] of Object.entries(board.vertices)) {
       if (!vertex.port) continue;
       const pos = layout.vertexPositions[vk];
       if (!pos) continue;
-      portVerts.push({ x: pos.x, y: pos.y, portType: vertex.port });
+      portVerts.push({ x: pos.x, y: pos.y, portType: vertex.port, vk });
     }
     const used = new Set<number>();
     const result: Array<{ pos: { x: number; y: number }; portType: PortType; v1: { x: number; y: number }; v2: { x: number; y: number } }> = [];
@@ -97,19 +96,30 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         if (b.portType !== a.portType) continue;
         const dx = b.x - a.x, dy = b.y - a.y;
         if (Math.sqrt(dx * dx + dy * dy) < threshold) {
-          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-          const len = Math.sqrt(mx * mx + my * my);
-          const push = layout.size * 1.2;
-          const px = len > 0 ? mx + (mx / len) * push : mx;
-          const py = len > 0 ? my + (my / len) * push : my;
-          result.push({ pos: { x: px, y: py }, portType: a.portType, v1: { x: a.x, y: a.y }, v2: { x: b.x, y: b.y } });
+          // Find the sea hex adjacent to both vertices (the one not in board.hexes or terrain === 'sea')
+          const hexKeysA = new Set(a.vk.split('|'));
+          const seaHk = b.vk.split('|').find(
+            (hk) => hexKeysA.has(hk) && (!board.hexes[hk] || board.hexes[hk]?.terrain === 'sea'),
+          );
+          let pos: { x: number; y: number };
+          if (seaHk) {
+            const [q, r, s] = seaHk.split(',').map(Number);
+            pos = cubeToPixel({ q: q!, r: r!, s: s! }, layout.size);
+          } else {
+            // Fallback: midpoint pushed outward from centroid
+            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            const len = Math.sqrt(mx * mx + my * my);
+            const push = layout.size * 1.2;
+            pos = len > 0 ? { x: mx + (mx / len) * push, y: my + (my / len) * push } : { x: mx, y: my };
+          }
+          result.push({ pos, portType: a.portType, v1: { x: a.x, y: a.y }, v2: { x: b.x, y: b.y } });
           used.add(i); used.add(j); matched = true; break;
         }
       }
       if (!matched) { used.add(i); }
     }
     return result;
-  }, [board.vertices, layout]);
+  }, [board.vertices, board.hexes, layout]);
 
   return (
     <svg

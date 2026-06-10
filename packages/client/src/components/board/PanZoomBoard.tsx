@@ -9,15 +9,15 @@ const MAX_SCALE = 5;
 export function PanZoomBoard({ children }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
-  const isDragging = useRef(false);
-  const isTouch = useRef(false);
-  const lastPoint = useRef({ x: 0, y: 0 });
+
+  // Active pointer positions (supports multi-touch pinch)
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const lastSingle = useRef({ x: 0, y: 0 });
   const lastPinchDist = useRef(0);
-  const lastPinchMid = useRef({ x: 0, y: 0 });
+  const isDragging = useRef(false);
 
   const clamp = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
-  // Zoom toward a screen-space pivot point
   const zoomAt = useCallback((pivotX: number, pivotY: number, factor: number) => {
     const el = containerRef.current;
     if (!el) return;
@@ -31,130 +31,83 @@ export function PanZoomBoard({ children }: Props) {
     });
   }, []);
 
-  // ── Mouse handlers ────────────────────────────────────────────────────────
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    isDragging.current = true;
-    isTouch.current = false;
-    lastPoint.current = { x: e.clientX, y: e.clientY };
-  }, []);
-
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    const dx = e.clientX - lastPoint.current.x;
-    const dy = e.clientY - lastPoint.current.y;
-    lastPoint.current = { x: e.clientX, y: e.clientY };
-    setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
-  }, []);
-
-  const onMouseUp = useCallback(() => { isDragging.current = false; }, []);
-
-  // ── Touch handlers (registered as non-passive to allow preventDefault) ───
-
-  const onTouchStart = useCallback((e: TouchEvent) => {
-    e.preventDefault();
-    isTouch.current = true;
-    const a = e.touches[0], b = e.touches[1];
-    if (e.touches.length === 1 && a) {
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 1) {
       isDragging.current = true;
-      lastPoint.current = { x: a.clientX, y: a.clientY };
-    } else if (e.touches.length >= 2 && a && b) {
+      lastSingle.current = { x: e.clientX, y: e.clientY };
+    } else if (pointers.current.size === 2) {
       isDragging.current = false;
-      lastPinchDist.current = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
-      lastPinchMid.current = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      const [p1, p2] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      lastPinchDist.current = Math.hypot(p2.x - p1.x, p2.y - p1.y);
     }
   }, []);
 
-  const onTouchMove = useCallback((e: TouchEvent) => {
-    e.preventDefault();
-    const a = e.touches[0], b = e.touches[1];
-    if (e.touches.length === 1 && isDragging.current && a) {
-      const dx = a.clientX - lastPoint.current.x;
-      const dy = a.clientY - lastPoint.current.y;
-      lastPoint.current = { x: a.clientX, y: a.clientY };
-      setTransform((tr) => ({ ...tr, x: tr.x + dx, y: tr.y + dy }));
-    } else if (e.touches.length >= 2 && a && b) {
-      const dist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
-      const mid = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
-      const el = containerRef.current;
-      if (el && lastPinchDist.current > 0) {
-        const factor = dist / lastPinchDist.current;
-        const pdx = mid.x - lastPinchMid.current.x;
-        const pdy = mid.y - lastPinchMid.current.y;
-        const rect = el.getBoundingClientRect();
-        const px = mid.x - rect.left;
-        const py = mid.y - rect.top;
-        setTransform((tr) => {
-          const newScale = clamp(tr.scale * factor);
-          const ratio = newScale / tr.scale;
-          return {
-            x: px - ratio * (px - tr.x) + pdx,
-            y: py - ratio * (py - tr.y) + pdy,
-            scale: newScale,
-          };
-        });
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 1 && isDragging.current) {
+      const dx = e.clientX - lastSingle.current.x;
+      const dy = e.clientY - lastSingle.current.y;
+      lastSingle.current = { x: e.clientX, y: e.clientY };
+      setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
+    } else if (pointers.current.size === 2) {
+      const [p1, p2] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      if (lastPinchDist.current > 0) {
+        zoomAt((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, dist / lastPinchDist.current);
       }
       lastPinchDist.current = dist;
-      lastPinchMid.current = mid;
     }
-  }, []);
+  }, [zoomAt]);
 
-  const onTouchEnd = useCallback((e: TouchEvent) => {
-    const a = e.touches[0];
-    if (e.touches.length === 0) {
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size === 0) {
       isDragging.current = false;
-    } else if (e.touches.length === 1 && a) {
+      lastPinchDist.current = 0;
+    } else if (pointers.current.size === 1) {
       isDragging.current = true;
-      lastPoint.current = { x: a.clientX, y: a.clientY };
+      const remaining = [...pointers.current.values()][0]!;
+      lastSingle.current = { x: remaining.x, y: remaining.y };
       lastPinchDist.current = 0;
     }
   }, []);
 
-  // ── Wheel zoom ────────────────────────────────────────────────────────────
-
+  // Wheel zoom — registered non-passive so preventDefault works
   const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
   }, [zoomAt]);
 
-  // ── Register non-passive listeners ────────────────────────────────────────
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     el.addEventListener('wheel', onWheel, { passive: false });
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [onWheel, onTouchStart, onTouchMove, onTouchEnd]);
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [onWheel]);
 
   return (
     <div
       ref={containerRef}
       style={{
         width: '100%', height: '100%', overflow: 'hidden',
-        cursor: isDragging.current && !isTouch.current ? 'grabbing' : 'grab',
+        cursor: isDragging.current ? 'grabbing' : 'grab',
         touchAction: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       <div style={{
         width: '100%', height: '100%',
         transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
         transformOrigin: '0 0',
-        willChange: 'transform',
       }}>
         {children}
       </div>
