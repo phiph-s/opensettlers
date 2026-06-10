@@ -510,65 +510,72 @@ export function LobbyRoomScreen() {
             }}>
               Settings
             </div>
-            <div style={{
-              background: th.settingsBg,
-              border: th.settingsBorder,
-              borderRadius: 14,
-              padding: '14px 16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-            }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+              {/* Bank Resources — slider */}
+              <div style={{
+                flex: 2,
+                background: th.settingsBg,
+                border: th.settingsBorder,
+                borderRadius: 14,
+                padding: '12px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                   <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Bank Resources
-                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>stock per type</span>
+                    <div style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginTop: 1 }}>stock per type</div>
                   </div>
                   <div style={{
-                    fontSize: 18, fontWeight: 800, color: th.accent,
+                    fontSize: 20, fontWeight: 800, color: th.accent,
                     fontFamily: "'Cinzel', Georgia, serif",
-                    minWidth: 28, textAlign: 'right',
                   }}>
                     {settings.bankResourceCount}
                   </div>
                 </div>
-                <input
-                  type="range" min={10} max={30} step={1}
-                  value={settings.bankResourceCount}
-                  disabled={!isHost}
-                  onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
-                  style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 2 }}>
-                  <span>10</span><span>19 std</span><span>30</span>
+                <div>
+                  <input
+                    type="range" min={10} max={30} step={1}
+                    value={settings.bankResourceCount}
+                    disabled={!isHost}
+                    onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
+                    style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 2 }}>
+                    <span>10</span><span>19 std</span><span>30</span>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Balanced Dice
-                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>flatter bell curve</span>
-                  </div>
-                </div>
-                <Toggle
-                  on={settings.balancedDice}
-                  onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { balancedDice: !settings.balancedDice } })}
-                  disabled={!isHost}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Friendly Robber
-                    <span style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginLeft: 8 }}>can't target &le;3 VP</span>
-                  </div>
-                </div>
-                <Toggle
-                  on={settings.friendlyRobber}
-                  onChange={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { friendlyRobber: !settings.friendlyRobber } })}
-                  disabled={!isHost}
-                />
-              </div>
+              {/* Balanced Dice — box toggle */}
+              {(['balancedDice', 'friendlyRobber'] as const).map((key) => {
+                const on = settings[key];
+                const label = key === 'balancedDice' ? 'Balanced Dice' : 'Friendly Robber';
+                const note  = key === 'balancedDice' ? 'Flatter bell curve' : "Can't target ≤3 VP";
+                return (
+                  <button
+                    key={key}
+                    disabled={!isHost}
+                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { [key]: !on } })}
+                    style={{
+                      flex: 1,
+                      background: on ? th.cardSelBg : th.settingsBg,
+                      border: `1.5px solid ${on ? th.cardSelBorder : th.cardUnselBorder}`,
+                      borderRadius: 14,
+                      padding: '12px 14px',
+                      cursor: isHost ? 'pointer' : 'default',
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: on ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 10, color: on ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>{note}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
