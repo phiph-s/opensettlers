@@ -23,8 +23,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
       previewHexes: m.hexes.map((h) => ({
         q: h.coord.q,
         r: h.coord.r,
-        // only include terrain when it's a fixed value (helps previews show clouds/desert rings)
-        ...(h.terrain !== null && { terrain: h.terrain }),
+        // only include terrain when explicitly locked (clouds ring, fixed desert, etc.)
+        ...(h.locked && h.terrain !== null && { terrain: h.terrain }),
       })),
     }));
     ack({ ok: true, data: maps });

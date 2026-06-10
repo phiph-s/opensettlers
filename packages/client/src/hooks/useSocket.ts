@@ -16,12 +16,21 @@ export function useSocket() {
   useEffect(() => {
     socket.connect();
 
+    const clearAll = () => {
+      useGameStore.getState().clearGame();
+      useLobbyStore.getState().setCurrentLobby(null);
+      usePlayerStore.getState().setLobbyId(null);
+    };
+
+    socket.on('disconnect', clearAll);
+
     socket.on('connect', () => {
       // Read current values at event time, not from stale closure
       const { myPlayerId, currentLobbyId } = usePlayerStore.getState();
       if (myPlayerId && currentLobbyId) {
         socket.emit('game:rejoin', { playerId: myPlayerId, lobbyId: currentLobbyId }, (res) => {
           if (res.ok) setGameState(res.data);
+          else clearAll(); // server restarted or game gone — go to main
         });
       }
     });
@@ -52,6 +61,7 @@ export function useSocket() {
 
     return () => {
       socket.off('connect');
+      socket.off('disconnect', clearAll);
       socket.off('game:state', setGameState);
       socket.off('game:over', onGameOver);
       socket.off('game:ready_count', onReadyCount);

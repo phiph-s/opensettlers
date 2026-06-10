@@ -2,111 +2,103 @@ import type { CubeCoord, MapTemplate, PortType, TerrainType } from '@opensettler
 
 function c(q: number, r: number): CubeCoord { return { q, r, s: -q - r }; }
 
-// North America: triangular — wide Canada, tapering to Mexico, Alaska extension
+// North America: triangular, Alaska extension NW
 const NORTH_AMERICA: CubeCoord[] = [
-  c(-10,-6), c(-9,-6),                                        // Alaska
-  c(-11,-5), c(-10,-5), c(-9,-5), c(-8,-5), c(-7,-5),         // Canada (wide)
-  c(-10,-4), c(-9,-4), c(-8,-4), c(-7,-4),                    // USA
-  c(-9,-3), c(-8,-3), c(-7,-3),                               // Southern USA
-  c(-8,-2),                                                   // Mexico tip
-]; // 15 hexes
+  c(-13,-5), c(-12,-5),                                       // Alaska [2]
+  c(-13,-4), c(-12,-4), c(-11,-4), c(-10,-4), c(-9,-4),       // Canada [5]
+  c(-12,-3), c(-11,-3), c(-10,-3), c(-9,-3),                  // USA [4]
+  c(-11,-2), c(-10,-2), c(-9,-2),                             // Southern USA [3]
+  c(-10,-1),                                                  // Mexico [1]
+]; // 15
 
-// Greenland: pushed far north for clear isolation
+// Greenland: far north above NA
 const GREENLAND: CubeCoord[] = [
-  c(-6,-7), c(-5,-7),
-]; // 2 hexes
+  c(-10,-7), c(-9,-7),
+]; // 2
 
-// Europe: compact peninsula
+// Europe: NW corner of Eurasia — adjacent to Asia at c(0,-7)/c(0,-5) ↔ c(1,-7)/c(1,-6)
 const EUROPE: CubeCoord[] = [
-  c(-3,-5), c(-2,-5), c(-1,-5), c(0,-5),
-  c(-3,-4), c(-2,-4), c(-1,-4),
-  c(-2,-3), c(-1,-3),
-]; // 9 hexes
+  c(-3,-7), c(-2,-7), c(-1,-7), c(0,-7),    // Scandinavia
+  c(-2,-6), c(-1,-6), c(0,-6),              // Western Europe
+  c(-1,-5), c(0,-5),                        // Southern Europe
+]; // 9
 
-// Asia: largest landmass, spreading east
+// Asia + Middle East: one connected landmass (Europe is adjacent on the west)
 const ASIA: CubeCoord[] = [
-  c(2,-5), c(3,-5), c(4,-5), c(5,-5), c(6,-5),
-  c(2,-4), c(3,-4), c(4,-4), c(5,-4), c(6,-4), c(7,-4),
-  c(3,-3), c(4,-3), c(5,-3), c(6,-3), c(7,-3),
-  c(4,-2), c(5,-2), c(6,-2),
-  c(6,-1), c(7,-1),
-]; // 21 hexes
+  c(1,-7), c(2,-7), c(3,-7), c(4,-7), c(5,-7),               // Siberia [5]
+  c(1,-6), c(2,-6), c(3,-6), c(4,-6), c(5,-6), c(6,-6),      // Central Asia [6]
+  c(2,-5), c(3,-5), c(4,-5), c(5,-5), c(6,-5),               // South Asia [5]
+  c(4,-4), c(5,-4), c(6,-4),                                 // SE Asia mainland [3]
+  c(3,-3), c(4,-3), c(5,-3), c(6,-3), c(7,-3),               // Middle East + Far East [5]
+]; // 24
 
-// Middle East: bridge between Asia and Africa
-const MIDDLE_EAST: CubeCoord[] = [
-  c(3,-2), c(4,-1), c(5,-1),
-]; // 3 hexes
-
-// Africa: wider at the Sahara belt, tapering south to Cape
+// Africa: triangular, connects to Asia via c(3,-2)↔c(3,-3)
 const AFRICA: CubeCoord[] = [
-  c(0,-2), c(1,-2), c(2,-2),                                  // North Africa
-  c(-1,-1), c(0,-1), c(1,-1), c(2,-1), c(3,-1),               // Sahara + West Africa bulge
-  c(0,0), c(1,0),                                             // Central Africa
-  c(1,1), c(2,1),                                             // Southern Africa
-  c(1,2),                                                     // Cape
-]; // 13 hexes
+  c(2,-2), c(3,-2), c(4,-2), c(5,-2),       // North Africa [4]
+  c(2,-1), c(3,-1), c(4,-1), c(5,-1),       // Sahara [4]
+  c(3,0),  c(4,0),                          // Central Africa [2]
+  c(3,1),  c(4,1),                          // Southern Africa [2]
+  c(3,2),                                   // Cape [1]
+]; // 13
 
-// South America: shifted east to sit naturally below Caribbean
-const SOUTH_AMERICA: CubeCoord[] = [
-  c(-6,1), c(-5,1), c(-4,1),
-  c(-6,2), c(-5,2), c(-4,2), c(-3,2),
-  c(-5,3), c(-4,3), c(-3,3),
-  c(-4,4),
-]; // 11 hexes
-
-// Australia: compact isolated continent
-const AUSTRALIA: CubeCoord[] = [
-  c(7,2), c(8,2), c(9,2),
-  c(7,3), c(8,3), c(9,3),
-  c(8,4),
-]; // 7 hexes
-
-// Caribbean islands: shifted east to bridge NA and SA
+// Caribbean: bridge between NA and SA
 const CARIBBEAN: CubeCoord[] = [
-  c(-5,0), c(-4,0), c(-3,0),
-]; // 3 hexes
+  c(-9,0), c(-8,0), c(-7,0),
+]; // 3
 
-// SE Asian island chain
+// South America: directly south of Caribbean, far west
+const SOUTH_AMERICA: CubeCoord[] = [
+  c(-11,1), c(-10,1), c(-9,1),
+  c(-11,2), c(-10,2), c(-9,2), c(-8,2),
+  c(-10,3), c(-9,3),  c(-8,3),
+  c(-9,4),
+]; // 11
+
+// SE Asian island chain — separated from Australia by 2-row gap
 const SE_ASIA_ISLANDS: CubeCoord[] = [
-  c(5,0), c(6,0), c(7,0),
-  c(7,1),
-]; // 4 hexes
+  c(8,-1), c(9,-1), c(10,-1),
+  c(9,0),
+]; // 4
 
-// Total: 15+2+9+21+3+13+11+7+3+4 = 88 hexes
+// Australia: compact, separated from SE islands by 2 empty rows
+const AUSTRALIA: CubeCoord[] = [
+  c(9,2),  c(10,2), c(11,2),
+  c(9,3),  c(10,3), c(11,3),
+  c(10,4),
+]; // 7
+
+// Total: 15+2+9+24+13+3+11+4+7 = 88
 const ALL_COORDS: CubeCoord[] = [
   ...NORTH_AMERICA, ...GREENLAND, ...EUROPE, ...ASIA,
-  ...MIDDLE_EAST, ...AFRICA, ...SOUTH_AMERICA,
-  ...AUSTRALIA, ...CARIBBEAN, ...SE_ASIA_ISLANDS,
+  ...AFRICA, ...CARIBBEAN, ...SOUTH_AMERICA,
+  ...SE_ASIA_ISLANDS, ...AUSTRALIA,
 ];
 
-// 88 terrain entries: 17 forest + 17 fields + 17 pasture + 16 hills + 16 mountains + 5 desert
+// 88 terrain entries — 3 deserts so number tokens = 85
+// Pool is shuffled by MapGenerator, so terrain: null is not used here;
+// all hexes specify a terrain so the pool is correctly populated, then shuffled.
 const TERRAIN_POOL: TerrainType[] = [
-  'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',
-  'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',
-  'fields',    'fields',    'fields',    'fields',    'fields',    'fields',    'fields',    'fields',    'fields',
-  'fields',    'fields',    'fields',    'fields',    'fields',    'fields',    'fields',    'fields',
-  'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',
-  'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',   'pasture',
-  'hills',     'hills',     'hills',     'hills',     'hills',     'hills',     'hills',     'hills',
-  'hills',     'hills',     'hills',     'hills',     'hills',     'hills',     'hills',     'hills',
-  'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains',
-  'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains',
-  'desert',    'desert',    'desert',    'desert',    'desert',
-]; // 17+17+17+16+16+5 = 88 ✓
+  ...Array(18).fill('forest'),
+  ...Array(18).fill('fields'),
+  ...Array(17).fill('pasture'),
+  ...Array(16).fill('hills'),
+  ...Array(16).fill('mountains'),
+  ...Array(3).fill('desert'),
+] as TerrainType[]; // 18+18+17+16+16+3 = 88 ✓
 
-// 83 number tokens (one per non-desert hex)
+// 85 number tokens (one per non-desert hex)
 const NUMBER_TOKENS: number[] = [
   2, 2, 2, 2,
   3, 3, 3, 3, 3, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4, 4,
-  5, 5, 5, 5, 5, 5, 5, 5, 5,
+  5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
   6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
   8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
   9, 9, 9, 9, 9, 9, 9, 9, 9,
   10, 10, 10, 10, 10, 10, 10, 10, 10,
-  11, 11, 11, 11, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
   12, 12, 12, 12, 12,
-]; // 4+9+9+9+10+10+9+9+9+5 = 83 ✓
+]; // 4+9+9+10+10+10+9+9+10+5 = 85 ✓
 
 const PORT_TYPES: PortType[] = [
   'ore_2_1', 'wood_2_1', 'brick_2_1', 'wheat_2_1', 'sheep_2_1',
@@ -121,6 +113,7 @@ export const WORLD_MAP: MapTemplate = {
   hexes: ALL_COORDS.map((coord, i) => ({
     coord,
     terrain: TERRAIN_POOL[i] ?? 'desert',
+    // Not locked — MapGenerator shuffles all terrains randomly each game
   })),
   numberTokens: NUMBER_TOKENS,
   portTypes: PORT_TYPES,
