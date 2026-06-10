@@ -57,6 +57,7 @@ export interface GameState {
   bank: Record<import('./primitives.js').Resource, number>;
   winTarget: number;
   pendingGoldChoices: Record<string, number>;
+  devCardPlayedThisTurn: boolean;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';

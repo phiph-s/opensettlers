@@ -103,6 +103,7 @@ export function GameScreen() {
           turnPhase={phase}
           isMyTurn={myPlayerId === activePlayer?.id}
           turnNumber={gameState.turnNumber}
+          devCardPlayedThisTurn={gameState.devCardPlayedThisTurn}
           bank={gameState.bank}
         />
       )}

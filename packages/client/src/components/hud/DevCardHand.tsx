@@ -9,6 +9,7 @@ interface Props {
   turnPhase: TurnPhase;
   isMyTurn: boolean;
   turnNumber: number;
+  devCardPlayedThisTurn: boolean;
   bank?: Partial<Record<Resource, number>>;
 }
 
@@ -37,11 +38,11 @@ const CARD_DESC: Record<string, string> = {
 
 const RESOURCES: Resource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
 
-function isPlayable(type: DevCardType, turnPhase: TurnPhase, isMyTurn: boolean, turnNumber: number, turnDrawn: number): boolean {
+function isPlayable(type: DevCardType, turnPhase: TurnPhase, isMyTurn: boolean, turnNumber: number, turnDrawn: number, devCardPlayedThisTurn: boolean): boolean {
   if (!isMyTurn) return false;
   if (turnDrawn >= turnNumber) return false; // drawn this turn
-
   if (type === 'victory_point') return false;
+  if (devCardPlayedThisTurn) return false; // one dev card per turn
   if (type === 'knight') return turnPhase === 'PRE_ROLL' || turnPhase === 'BUILD_PHASE';
   return turnPhase === 'BUILD_PHASE';
 }
@@ -334,7 +335,7 @@ function CardStack({ type, cards, playable, bank }: CardStackProps) {
 }
 
 // ---- Main DevCardHand ----
-export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber, bank }: Props) {
+export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber, devCardPlayedThisTurn, bank }: Props) {
   // Group cards by type
   const groups = new Map<DevCardType, DevCardInHand[]>();
   for (const card of devCards) {
@@ -356,7 +357,7 @@ export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber, bank }:
       {Array.from(groups.entries()).map(([type, cards]) => {
         // A group is playable if at least one card in it is playable
         const playable = cards.some((c) =>
-          isPlayable(c.type, turnPhase, isMyTurn, turnNumber, c.turnDrawn)
+          isPlayable(c.type, turnPhase, isMyTurn, turnNumber, c.turnDrawn, devCardPlayedThisTurn)
         );
         return (
           <CardStack key={type} type={type} cards={cards} playable={playable} bank={bank} />

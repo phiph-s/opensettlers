@@ -149,6 +149,7 @@ export class GameEngine {
       bank: { wood: settings.bankResourceCount, brick: settings.bankResourceCount, wheat: settings.bankResourceCount, sheep: settings.bankResourceCount, ore: settings.bankResourceCount },
       winTarget: settings.vpToWin,
       pendingGoldChoices: {},
+      devCardPlayedThisTurn: false,
     };
   }
 
@@ -673,12 +674,14 @@ export class GameEngine {
   handlePlayKnight(playerId: string): string | null {
     if (this.state.phase !== 'PRE_ROLL' && this.state.phase !== 'BUILD_PHASE') return 'Cannot play knight now';
     if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.state.devCardPlayedThisTurn) return 'Already played a dev card this turn';
 
     const player = this.state.players.find((p) => p.id === playerId)!;
     const err = canPlayDevCard(player, 'knight', this.state.turnNumber);
     if (err) return err;
 
     this.knightBeforeRoll = this.state.phase === 'PRE_ROLL';
+    this.state.devCardPlayedThisTurn = true;
 
     removeDevCard(player, 'knight', this.state.turnNumber);
     player.knightsPlayed++;
@@ -701,11 +704,13 @@ export class GameEngine {
   handlePlayRoadBuilding(playerId: string): string | null {
     if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
     if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.state.devCardPlayedThisTurn) return 'Already played a dev card this turn';
 
     const player = this.state.players.find((p) => p.id === playerId)!;
     const err = canPlayDevCard(player, 'road_building', this.state.turnNumber);
     if (err) return err;
 
+    this.state.devCardPlayedThisTurn = true;
     removeDevCard(player, 'road_building', this.state.turnNumber);
     this.io.to(this.lobbyId).emit('game:dev_card_played', {
       cardType: 'road_building',
@@ -721,11 +726,13 @@ export class GameEngine {
   handlePlayYearOfPlenty(playerId: string, r1: Resource, r2: Resource): string | null {
     if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
     if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.state.devCardPlayedThisTurn) return 'Already played a dev card this turn';
 
     const player = this.state.players.find((p) => p.id === playerId)!;
     const err = canPlayDevCard(player, 'year_of_plenty', this.state.turnNumber);
     if (err) return err;
 
+    this.state.devCardPlayedThisTurn = true;
     removeDevCard(player, 'year_of_plenty', this.state.turnNumber);
     player.hand[r1] = (player.hand[r1] ?? 0) + 1;
     player.hand[r2] = (player.hand[r2] ?? 0) + 1;
@@ -745,11 +752,13 @@ export class GameEngine {
   handlePlayMonopoly(playerId: string, resource: Resource): string | null {
     if (this.state.phase !== 'BUILD_PHASE') return 'Cannot play card now';
     if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (this.state.devCardPlayedThisTurn) return 'Already played a dev card this turn';
 
     const player = this.state.players.find((p) => p.id === playerId)!;
     const err = canPlayDevCard(player, 'monopoly', this.state.turnNumber);
     if (err) return err;
 
+    this.state.devCardPlayedThisTurn = true;
     removeDevCard(player, 'monopoly', this.state.turnNumber);
 
     let stolen = 0;
@@ -929,6 +938,7 @@ export class GameEngine {
     this.state.activePlayerIndex =
       (this.state.activePlayerIndex + 1) % this.state.players.length;
     this.state.turnNumber++;
+    this.state.devCardPlayedThisTurn = false;
     this.advancePhase('PRE_ROLL');
     return null;
   }
