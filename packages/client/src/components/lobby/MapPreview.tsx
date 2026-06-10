@@ -1,20 +1,8 @@
 import React from 'react';
 
 interface PreviewHex { q: number; r: number; terrain?: string }
-interface Props { hexes: PreviewHex[]; width: number; height: number }
+interface Props { hexes: PreviewHex[]; width: number; height: number; dark?: boolean }
 
-const TERRAIN_COLOR: Record<string, string> = {
-  clouds:  '#c8dcf8',
-  desert:  '#d4c090',
-  forest:  '#4a8a4a',
-  fields:  '#b8a240',
-  pasture: '#6ab040',
-  hills:   '#b84820',
-  mountains: '#808080',
-};
-const DEFAULT_LAND = '#4a8a4a';
-
-// Pointy-top hex: pixel position from axial (q, r)
 function hexToPixel(q: number, r: number, size: number) {
   return {
     x: size * Math.sqrt(3) * (q + r / 2),
@@ -22,7 +10,6 @@ function hexToPixel(q: number, r: number, size: number) {
   };
 }
 
-// Six corner offsets for a pointy-top hex of given size
 function hexCorners(cx: number, cy: number, size: number): string {
   const pts: string[] = [];
   for (let i = 0; i < 6; i++) {
@@ -32,10 +19,9 @@ function hexCorners(cx: number, cy: number, size: number): string {
   return pts.join(' ');
 }
 
-export function MapPreview({ hexes, width, height }: Props) {
+export function MapPreview({ hexes, width, height, dark = false }: Props) {
   if (!hexes || hexes.length === 0) return null;
 
-  // Compute bounding box at size=1
   const positions = hexes.map((h) => hexToPixel(h.q, h.r, 1));
   const xs = positions.map((p) => p.x);
   const ys = positions.map((p) => p.y);
@@ -44,16 +30,20 @@ export function MapPreview({ hexes, width, height }: Props) {
   const rangeX = maxX - minX || 1;
   const rangeY = maxY - minY || 1;
 
-  // Scale so hex grid fills the container with padding
   const pad = 0.12;
   const scale = Math.min(
     (width * (1 - pad * 2)) / (rangeX + Math.sqrt(3)),
-    (height * (1 - pad * 2)) / (rangeY + 2)
+    (height * (1 - pad * 2)) / (rangeY + 2),
   );
   const hexSize = scale;
-
   const offsetX = width / 2 - ((minX + maxX) / 2) * scale;
   const offsetY = height / 2 - ((minY + maxY) / 2) * scale;
+
+  // Greyscale: light mode → normal=dark, clouds=light, desert=border-only
+  //            dark mode  → normal=light, clouds=dark, desert=border-only
+  const normalFill  = dark ? '#b0b0b0' : '#787878';
+  const cloudFill   = dark ? '#383838' : '#c8c8c8';
+  const desertStroke = dark ? '#686868' : '#909090';
 
   return (
     <svg width={width} height={height} style={{ display: 'block', pointerEvents: 'none' }}>
@@ -61,14 +51,15 @@ export function MapPreview({ hexes, width, height }: Props) {
         const px = hexToPixel(h.q, h.r, hexSize);
         const cx = px.x + offsetX;
         const cy = px.y + offsetY;
-        const fill = h.terrain ? (TERRAIN_COLOR[h.terrain] ?? DEFAULT_LAND) : DEFAULT_LAND;
+        const isDesert = h.terrain === 'desert';
+        const isClouds = h.terrain === 'clouds';
         return (
           <polygon
             key={i}
             points={hexCorners(cx, cy, hexSize * 0.9)}
-            fill={fill}
-            stroke="rgba(0,0,0,0.2)"
-            strokeWidth={0.5}
+            fill={isDesert ? 'none' : isClouds ? cloudFill : normalFill}
+            stroke={isDesert ? desertStroke : 'none'}
+            strokeWidth={isDesert ? 1 : 0}
           />
         );
       })}

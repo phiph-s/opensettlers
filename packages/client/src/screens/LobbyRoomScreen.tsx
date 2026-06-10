@@ -480,7 +480,7 @@ export function LobbyRoomScreen() {
                   >
                     {map.previewHexes && map.previewHexes.length > 0 && (
                       <div style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden' }}>
-                        <MapPreview hexes={map.previewHexes} width={72} height={52} />
+                        <MapPreview hexes={map.previewHexes} width={72} height={52} dark={dark} />
                       </div>
                     )}
                     <div style={{
