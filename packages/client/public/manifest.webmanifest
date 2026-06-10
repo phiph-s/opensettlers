@@ -1,0 +1,25 @@
+{
+  "name": "OpenSettlers",
+  "short_name": "Settlers",
+  "description": "Claim hexes. Build roads. Rule the island.",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#f5e8c0",
+  "theme_color": "#6b4c11",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
