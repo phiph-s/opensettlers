@@ -130,12 +130,11 @@ export function VertexSpot({ vertex, position, isValid, size, myPlayerId, player
         key={`${building.type}-${building.owner}`}
         className="piece-drop-in"
         onClick={isValid ? onClick : undefined}
-        style={isValid ? { cursor: 'pointer' } : undefined}
+        style={{ cursor: isValid ? 'pointer' : undefined, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.52))' }}
       >
         {building.type === 'city'
           ? <City cx={x} cy={y} color={color} s={s} />
           : <Settlement cx={x} cy={y} color={color} s={s} />}
-        {/* Highlight ring when this building is a valid upgrade target */}
         {isValid && (
           <circle
             cx={x} cy={y} r={s * 1.3}

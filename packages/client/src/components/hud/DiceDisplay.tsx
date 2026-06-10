@@ -81,9 +81,6 @@ export function DiceDisplay({ diceRoll, canRoll }: Props) {
           fontSize: 18,
         }}>{sum}</div>
       )}
-      {canRoll && (
-        <div style={{ fontSize: 11, color: '#7a6d5e' }}>click to roll</div>
-      )}
     </div>
   );
 }

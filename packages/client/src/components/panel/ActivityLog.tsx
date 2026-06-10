@@ -137,16 +137,16 @@ export function ActivityLog({ players }: Props) {
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'var(--ui-panel)',
       borderRadius: 8,
-      border: '1px solid #d8cfc4',
+      border: '1px solid var(--ui-border)',
       display: 'flex',
       flexDirection: 'column',
       minHeight: 0,
       maxHeight: 180,
       boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 'bold', color: '#7a6d5e', padding: '6px 10px 4px', borderBottom: '1px solid #e8e1d5', flexShrink: 0 }}>
+      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--ui-text-muted)', padding: '6px 10px 4px', borderBottom: '1px solid var(--ui-border-light)', flexShrink: 0 }}>
         Activity
       </div>
       <div
@@ -154,10 +154,10 @@ export function ActivityLog({ players }: Props) {
         style={{ overflowY: 'auto', padding: '4px 8px', flex: 1, minHeight: 0 }}
       >
         {entries.length === 0 && (
-          <div style={{ color: '#b0a898', fontSize: 11, padding: '4px 0' }}>No activity yet</div>
+          <div style={{ color: 'var(--ui-text-faint)', fontSize: 11, padding: '4px 0' }}>No activity yet</div>
         )}
         {entries.map((e) => (
-          <div key={e.id} style={{ fontSize: 11, color: e.color ?? '#374151', padding: '2px 0', lineHeight: 1.5 }}>
+          <div key={e.id} style={{ fontSize: 11, color: e.color ?? 'var(--ui-text)', padding: '2px 0', lineHeight: 1.5 }}>
             {e.text}
             {e.resources && <InlineResources resources={e.resources} />}
           </div>

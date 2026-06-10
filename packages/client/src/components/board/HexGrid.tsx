@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import type { GameState, EdgeKey, HexKey, VertexKey, PortType } from '@opensettlers/shared';
-import { cubeKey } from '@opensettlers/shared';
+import { cubeKey, hexPolygonPoints } from '@opensettlers/shared';
 import { useBoardLayout } from '../../hooks/useBoardLayout.js';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { HexTile } from './HexTile.js';
@@ -120,14 +120,30 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         <TerrainPatterns />
       </defs>
 
-      {/* Hex tiles */}
+      {/* Sandy island base — slightly inflated polygon behind each land hex */}
       {Object.entries(board.hexes).map(([hk, hex]) => {
+        if (hex.terrain === 'sea') return null;
+        const center = layout.hexCenters[hk];
+        if (!center) return null;
+        return (
+          <polygon
+            key={`sandy-${hk}`}
+            points={hexPolygonPoints(center, layout.size * 1.05)}
+            fill="#e8d4a0"
+            stroke="none"
+          />
+        );
+      })}
+
+      {/* Hex tiles (sea hexes skipped — animated ocean background shows through) */}
+      {Object.entries(board.hexes).map(([hk, hex]) => {
+        if (hex.terrain === 'sea') return null;
         const center = layout.hexCenters[hk];
         if (!center) return null;
         return (
           <g key={hk}>
             <HexTile hex={hex} center={center} size={layout.size} />
-            {canMoveRobber && hex.terrain !== 'sea' && !hex.hasRobber && (
+            {canMoveRobber && !hex.hasRobber && (
               <RobberSpot
                 hex={hex}
                 center={center}

@@ -8,6 +8,36 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #1a1a2e; color: #eee; font-family: system-ui, sans-serif; }
       #root { height: 100vh; display: flex; flex-direction: column; }
+
+      /* UI theme variables — game board SVG colours are unaffected */
+      :root {
+        --ui-bg: #e8e1d5;
+        --ui-panel: #ffffff;
+        --ui-panel-active: #fff8ee;
+        --ui-text: #2c2516;
+        --ui-text-muted: #7a6d5e;
+        --ui-text-faint: #9a8a7a;
+        --ui-border: #c9bfae;
+        --ui-border-light: #e8e1d5;
+        --ui-topbar: #6b4c11;
+        --ui-topbar-border: #a07828;
+        --ui-topbar-text: #e8d5a8;
+        --ui-topbar-strong: #ffffff;
+      }
+      body.dark {
+        --ui-bg: #141820;
+        --ui-panel: #1c2438;
+        --ui-panel-active: #232d44;
+        --ui-text: #d4e0f0;
+        --ui-text-muted: #8090b0;
+        --ui-text-faint: #5a6880;
+        --ui-border: #252d42;
+        --ui-border-light: #1c2438;
+        --ui-topbar: #0d1220;
+        --ui-topbar-border: #252d42;
+        --ui-topbar-text: #8090b0;
+        --ui-topbar-strong: #d4e0f0;
+      }
     </style>
   </head>
   <body>

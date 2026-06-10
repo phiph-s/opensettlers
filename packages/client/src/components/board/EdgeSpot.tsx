@@ -19,20 +19,30 @@ export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, playerColorMap
     const color = playerColorMap[edge.road.owner] ?? '#aaa';
     if (v1 && v2) {
       return (
-        <g key={edge.road.owner} className="road-drop-in">
+        <g className="road-drop-in" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.55))' }}>
+          {/* White outline underneath for contrast */}
+          <line
+            x1={v1.x} y1={v1.y}
+            x2={v2.x} y2={v2.y}
+            stroke="rgba(255,255,255,0.72)"
+            strokeWidth={size * 0.145}
+            strokeLinecap="round"
+          />
+          {/* Player-coloured road on top */}
           <line
             x1={v1.x} y1={v1.y}
             x2={v2.x} y2={v2.y}
             stroke={color}
-            strokeWidth={size * 0.1}
+            strokeWidth={size * 0.095}
             strokeLinecap="round"
           />
         </g>
       );
     }
     return (
-      <g key={edge.road.owner} className="road-drop-in">
-        <circle cx={midpoint.x} cy={midpoint.y} r={size * 0.08} fill={color} />
+      <g className="road-drop-in">
+        <circle cx={midpoint.x} cy={midpoint.y} r={size * 0.08} fill={color}
+          style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }} />
       </g>
     );
   }

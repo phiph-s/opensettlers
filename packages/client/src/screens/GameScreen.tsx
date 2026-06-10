@@ -95,8 +95,8 @@ export function GameScreen() {
           gap: 8,
           padding: 8,
           overflowY: 'auto',
-          background: '#e8e1d5',
-          borderLeft: '1px solid #c9bfae',
+          background: 'var(--ui-bg)',
+          borderLeft: '1px solid var(--ui-border)',
         }}>
           <ActivityLog players={players} />
           {players.map((p) => (
@@ -114,7 +114,7 @@ export function GameScreen() {
       </div>
 
       {/* Bottom bar — resources + dev cards + build actions */}
-      <div style={{ display: 'flex', gap: 10, padding: '8px 12px', background: '#e8e1d5', borderTop: '1px solid #c9bfae', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'var(--ui-bg)', borderTop: '1px solid var(--ui-border)', alignItems: 'center' }}>
         {me && <ResourceHand player={me} portRates={portRates} playerId={me.id} />}
         {me && me.devCards.length > 0 && (
           <DevCardHand
