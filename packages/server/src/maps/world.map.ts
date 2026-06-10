@@ -1,28 +1,29 @@
 import type { CubeCoord, MapTemplate, PortType, TerrainType } from '@opensettlers/shared';
 
-// s = -q-r for all cube coordinates
 function c(q: number, r: number): CubeCoord { return { q, r, s: -q - r }; }
 
-// ~88 hexes shaped like Earth's continents, distributed across 7 clusters.
-// All coordinates verified: q + r + s = 0.
-
+// North America: triangular — wide Canada, tapering to Mexico, Alaska extension
 const NORTH_AMERICA: CubeCoord[] = [
-  c(-11,-5), c(-10,-5), c(-9,-5), c(-8,-5),
-  c(-11,-4), c(-10,-4), c(-9,-4), c(-8,-4), c(-7,-4),
-  c(-10,-3), c(-9,-3), c(-8,-3), c(-7,-3),
-  c(-8,-2), c(-7,-2),
+  c(-10,-6), c(-9,-6),                                        // Alaska
+  c(-11,-5), c(-10,-5), c(-9,-5), c(-8,-5), c(-7,-5),         // Canada (wide)
+  c(-10,-4), c(-9,-4), c(-8,-4), c(-7,-4),                    // USA
+  c(-9,-3), c(-8,-3), c(-7,-3),                               // Southern USA
+  c(-8,-2),                                                   // Mexico tip
 ]; // 15 hexes
 
+// Greenland: pushed far north for clear isolation
 const GREENLAND: CubeCoord[] = [
-  c(-6,-6), c(-5,-6),
+  c(-6,-7), c(-5,-7),
 ]; // 2 hexes
 
+// Europe: compact peninsula
 const EUROPE: CubeCoord[] = [
   c(-3,-5), c(-2,-5), c(-1,-5), c(0,-5),
   c(-3,-4), c(-2,-4), c(-1,-4),
   c(-2,-3), c(-1,-3),
 ]; // 9 hexes
 
+// Asia: largest landmass, spreading east
 const ASIA: CubeCoord[] = [
   c(2,-5), c(3,-5), c(4,-5), c(5,-5), c(6,-5),
   c(2,-4), c(3,-4), c(4,-4), c(5,-4), c(6,-4), c(7,-4),
@@ -31,35 +32,41 @@ const ASIA: CubeCoord[] = [
   c(6,-1), c(7,-1),
 ]; // 21 hexes
 
+// Middle East: bridge between Asia and Africa
 const MIDDLE_EAST: CubeCoord[] = [
   c(3,-2), c(4,-1), c(5,-1),
-]; // 3 hexes — bridge between Asia and Africa
+]; // 3 hexes
 
+// Africa: wider at the Sahara belt, tapering south to Cape
 const AFRICA: CubeCoord[] = [
-  c(0,-2), c(1,-2), c(2,-2),
-  c(0,-1), c(1,-1), c(2,-1), c(3,-1),
-  c(0,0),  c(1,0),  c(2,0),
-  c(1,1),  c(2,1),
-  c(1,2),
+  c(0,-2), c(1,-2), c(2,-2),                                  // North Africa
+  c(-1,-1), c(0,-1), c(1,-1), c(2,-1), c(3,-1),               // Sahara + West Africa bulge
+  c(0,0), c(1,0),                                             // Central Africa
+  c(1,1), c(2,1),                                             // Southern Africa
+  c(1,2),                                                     // Cape
 ]; // 13 hexes
 
+// South America: shifted east to sit naturally below Caribbean
 const SOUTH_AMERICA: CubeCoord[] = [
-  c(-7,1), c(-6,1), c(-5,1),
-  c(-7,2), c(-6,2), c(-5,2), c(-4,2),
-  c(-6,3), c(-5,3), c(-4,3),
-  c(-5,4),
+  c(-6,1), c(-5,1), c(-4,1),
+  c(-6,2), c(-5,2), c(-4,2), c(-3,2),
+  c(-5,3), c(-4,3), c(-3,3),
+  c(-4,4),
 ]; // 11 hexes
 
+// Australia: compact isolated continent
 const AUSTRALIA: CubeCoord[] = [
   c(7,2), c(8,2), c(9,2),
   c(7,3), c(8,3), c(9,3),
   c(8,4),
 ]; // 7 hexes
 
+// Caribbean islands: shifted east to bridge NA and SA
 const CARIBBEAN: CubeCoord[] = [
-  c(-6,0), c(-5,0), c(-4,0),
+  c(-5,0), c(-4,0), c(-3,0),
 ]; // 3 hexes
 
+// SE Asian island chain
 const SE_ASIA_ISLANDS: CubeCoord[] = [
   c(5,0), c(6,0), c(7,0),
   c(7,1),
@@ -72,8 +79,7 @@ const ALL_COORDS: CubeCoord[] = [
   ...AUSTRALIA, ...CARIBBEAN, ...SE_ASIA_ISLANDS,
 ];
 
-// Terrain pool: 88 entries (5 deserts + 83 productive land hexes)
-// 17 forest + 17 fields + 17 pasture + 16 hills + 16 mountains + 5 desert = 88
+// 88 terrain entries: 17 forest + 17 fields + 17 pasture + 16 hills + 16 mountains + 5 desert
 const TERRAIN_POOL: TerrainType[] = [
   'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',
   'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',    'forest',
@@ -86,11 +92,9 @@ const TERRAIN_POOL: TerrainType[] = [
   'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains',
   'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains', 'mountains',
   'desert',    'desert',    'desert',    'desert',    'desert',
-];
-// 17+17+17+16+16+5 = 88 ✓
+]; // 17+17+17+16+16+5 = 88 ✓
 
 // 83 number tokens (one per non-desert hex)
-// 2×4, 3×9, 4×9, 5×9, 6×10, 8×10, 9×9, 10×9, 11×9, 12×5 = 83
 const NUMBER_TOKENS: number[] = [
   2, 2, 2, 2,
   3, 3, 3, 3, 3, 3, 3, 3, 3,

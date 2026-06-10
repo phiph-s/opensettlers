@@ -335,6 +335,7 @@ export class GameEngine {
       playerId,
     });
 
+    this.revealCloudsAdjacentToRoad(ek);
     this.updateLongestRoad();
 
     const next = nextSetupPlayerIndex(this.state);
