@@ -26,9 +26,12 @@ export function useSocket() {
       }
     });
 
+    const onGameOver = (summary: Parameters<typeof setGameSummary>[0]) => setGameSummary(summary);
+    const onReadyCount = ({ count, needed }: { count: number; needed: number }) => setReadyCount(count, needed);
+
     socket.on('game:state', setGameState);
-    socket.on('game:over', setGameSummary);
-    socket.on('game:ready_count', ({ count, needed }) => setReadyCount(count, needed));
+    socket.on('game:over', onGameOver);
+    socket.on('game:ready_count', onReadyCount);
 
     socket.on('lobby:updated', (lobby) => {
       upsertLobby(lobby);
@@ -49,9 +52,9 @@ export function useSocket() {
 
     return () => {
       socket.off('connect');
-      socket.off('game:state');
-      socket.off('game:over');
-      socket.off('game:ready_count');
+      socket.off('game:state', setGameState);
+      socket.off('game:over', onGameOver);
+      socket.off('game:ready_count', onReadyCount);
       socket.off('lobby:updated');
       socket.off('lobby:started');
       socket.disconnect();

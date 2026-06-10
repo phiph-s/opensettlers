@@ -522,6 +522,7 @@ export class GameEngine {
       }
     }
 
+    if (this.attemptWin()) return null;
     this.updateVP();
     this.broadcastState();
     return null;
@@ -545,6 +546,7 @@ export class GameEngine {
 
     // Placing a settlement may break an opponent's longest road
     this.updateLongestRoad();
+    if (this.attemptWin()) return null;
     this.updateVP();
     this.broadcastState();
     return null;
@@ -567,6 +569,7 @@ export class GameEngine {
       playerId,
     });
 
+    if (this.attemptWin()) return null;
     this.updateVP();
     this.broadcastState();
     return null;
@@ -586,6 +589,7 @@ export class GameEngine {
     this.state.devCardDeckSize = this.devDeck.length;
     player.devCards.push({ type: card, turnDrawn: this.state.turnNumber });
 
+    if (this.attemptWin()) return null;
     this.updateVP();
     this.broadcastState();
     return null;
@@ -614,6 +618,7 @@ export class GameEngine {
       });
     }
 
+    if (this.attemptWin()) return null;
     this.advancePhase('ROBBER_PLACEMENT');
     return null;
   }
@@ -837,19 +842,7 @@ export class GameEngine {
 
     this.timer.cancel(this.gameId);
 
-    this.updateVP();
-    const winner = checkWin(this.state);
-    if (winner) {
-      this.state.winner = winner;
-      this.state.phase = 'GAME_OVER';
-      const breakdown: Record<string, ReturnType<typeof computeVP>> = {};
-      for (const p of this.state.players) {
-        breakdown[p.id] = computeVP(this.state, p);
-      }
-      this.io.to(this.lobbyId).emit('game:over', { winnerId: winner, breakdown });
-      this.broadcastState();
-      return null;
-    }
+    if (this.attemptWin()) return null;
 
     this.state.activePlayerIndex =
       (this.state.activePlayerIndex + 1) % this.state.players.length;
@@ -902,6 +895,20 @@ export class GameEngine {
     for (const player of this.state.players) {
       player.victoryPoints = computeVP(this.state, player).total;
     }
+  }
+
+  // Returns true and triggers GAME_OVER if the current state satisfies win condition.
+  private attemptWin(): boolean {
+    const winner = checkWin(this.state);
+    if (!winner) return false;
+    this.timer.cancel(this.gameId);
+    this.state.winner = winner;
+    this.state.phase = 'GAME_OVER';
+    const breakdown: Record<string, ReturnType<typeof computeVP>> = {};
+    for (const p of this.state.players) breakdown[p.id] = computeVP(this.state, p);
+    this.io.to(this.lobbyId).emit('game:over', { winnerId: winner, breakdown });
+    this.broadcastState();
+    return true;
   }
 
   destroy(): void {

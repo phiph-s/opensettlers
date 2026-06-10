@@ -9,7 +9,6 @@ import { TurnPhaseBar } from '../components/hud/TurnPhaseBar.js';
 import { TurnTimerBar } from '../components/hud/TurnTimerBar.js';
 import { PlayerPanel } from '../components/panel/PlayerPanel.js';
 import { DiscardPanel } from '../components/trade/DiscardPanel.js';
-import { VictoryBanner } from '../components/hud/VictoryBanner.js';
 import { ResourceHand, computePortRates } from '../components/hud/ResourceHand.js';
 import { DevCardHand } from '../components/hud/DevCardHand.js';
 import { BuildPanel } from '../components/hud/BuildPanel.js';
@@ -21,7 +20,6 @@ import { StealDialog } from '../components/hud/StealDialog.js';
 import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
 import { AchievementBanner } from '../components/hud/AchievementBanner.js';
 import { OceanBackground } from '../components/board/OceanBackground.js';
-import type { GameOverSummary } from '@opensettlers/shared';
 import { useLobbyStore } from '../store/useLobbyStore.js';
 import { socket } from '../socket.js';
 
@@ -33,7 +31,6 @@ export function GameScreen() {
   const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
   const validMoves = useValidMoves(gameState, myPlayerId);
   useSoundEffects(gameState, myPlayerId);
-  const [gameSummary, setGameSummary] = useState<GameOverSummary | null>(null);
   const [buildMode, setBuildMode] = useState<'road' | 'settlement' | 'city' | null>(null);
 
   // Clear build mode whenever the phase changes (placement was accepted or turn ended)
@@ -44,11 +41,6 @@ export function GameScreen() {
       prevPhaseRef.current = gameState.phase;
     }
   });
-
-  React.useEffect(() => {
-    socket.on('game:over', (summary) => setGameSummary(summary));
-    return () => { socket.off('game:over'); };
-  }, []);
 
   if (!gameState) return null;
 
@@ -158,11 +150,6 @@ export function GameScreen() {
       {/* Discard modal */}
       {me && myDiscardCount > 0 && (
         <DiscardPanel me={me} count={myDiscardCount} />
-      )}
-
-      {/* Victory banner */}
-      {gameSummary && (
-        <VictoryBanner summary={gameSummary} players={players} myPlayerId={myPlayerId} />
       )}
 
       {/* Achievement banners — longest road / largest army */}
