@@ -163,7 +163,8 @@ function ActionButton({ label, icon, cost, player, disabled, onClick, color = '#
           color: disabled ? '#9e8e7e' : active ? '#fff' : color,
           border: `2px solid ${disabled ? '#c9bfae' : color}`,
           borderRadius: 6,
-          padding: '5px 11px',
+          padding: '0 11px',
+          height: BTN_HEIGHT,
           cursor: disabled ? 'default' : 'pointer',
           fontSize: 12,
           fontWeight: 'bold',
@@ -173,6 +174,7 @@ function ActionButton({ label, icon, cost, player, disabled, onClick, color = '#
           display: 'flex',
           alignItems: 'center',
           gap: 5,
+          boxSizing: 'border-box',
         }}
       >
         {icon}
@@ -198,9 +200,13 @@ function ActionButton({ label, icon, cost, player, disabled, onClick, color = '#
 
 // ── BuildPanel ──────────────────────────────────────────────────────────────
 
+const BTN_HEIGHT = 34;
+
 export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuildModeChange }: Props) {
   const inBuild = phase === 'BUILD_PHASE' || phase === 'DEV_ROAD_BUILDING';
   const canEnd = validMoves.canEndTurn && isMyTurn;
+
+  if (!inBuild && !canEnd) return null;
 
   const toggle = (mode: 'road' | 'settlement' | 'city') => {
     onBuildModeChange(buildMode === mode ? null : mode);
@@ -210,7 +216,7 @@ export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuild
     <div style={{
       display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
       padding: '6px 10px',
-      background: 'rgba(255,255,255,0.5)',
+      background: 'var(--ui-overlay-bg)',
       border: '1px solid var(--ui-border)',
       borderRadius: 10,
     }}>

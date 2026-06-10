@@ -69,15 +69,15 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
       bottom: '100%',
       left: 0,
       marginBottom: 8,
-      background: '#fffdf7',
-      border: '1.5px solid #c9bfae',
+      background: 'var(--ui-card-bg)',
+      border: '1.5px solid var(--ui-card-border)',
       borderRadius: 10,
       padding: 12,
       zIndex: 100,
       minWidth: 210,
       boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
     }}>
-      <div style={{ fontSize: 11, color: '#7a6d5e', marginBottom: 10, fontWeight: 600 }}>{title}</div>
+      <div style={{ fontSize: 11, color: 'var(--ui-text-muted)', marginBottom: 10, fontWeight: 600 }}>{title}</div>
       <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
         {RESOURCES.map((r) => {
           const selectedCount = picks.filter((x) => x === r).length;
@@ -90,8 +90,8 @@ function ResourcePicker({ title, count, onConfirm, onCancel }: ResourcePickerPro
                 width: 38,
                 height: 50,
                 borderRadius: 6,
-                background: isSelected ? RESOURCE_COLORS[r] : '#f2ede4',
-                border: isSelected ? `2px solid ${RESOURCE_COLORS[r]}` : '1.5px solid #c9bfae',
+                background: isSelected ? RESOURCE_COLORS[r] : 'var(--ui-input-bg)',
+                border: isSelected ? `2px solid ${RESOURCE_COLORS[r]}` : '1.5px solid var(--ui-card-border)',
                 cursor: 'pointer',
                 padding: 0,
                 display: 'flex',
@@ -301,8 +301,8 @@ export function DevCardHand({ devCards, turnPhase, isMyTurn, turnNumber }: Props
       display: 'flex',
       gap: 8,
       padding: '8px 12px',
-      background: 'rgba(255,255,255,0.5)',
-      border: '1px solid #c9bfae',
+      background: 'var(--ui-overlay-bg)',
+      border: '1px solid var(--ui-border)',
       borderRadius: 10,
       flexShrink: 0,
       alignItems: 'flex-end',

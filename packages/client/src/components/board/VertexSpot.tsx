@@ -42,10 +42,10 @@ function Settlement({ cx, cy, color, s }: { cx: number; cy: number; color: strin
 
   return (
     <g>
-      <path d={d} fill={color} stroke="#222" strokeWidth={1.2} strokeLinejoin="round" />
-      {/* Roof shading — slightly darker overlay on the triangle */}
+      {/* Light border outline behind main shape */}
+      <path d={d} fill="none" stroke="rgba(255,255,255,0.62)" strokeWidth={2.2} strokeLinejoin="round" />
+      <path d={d} fill={color} stroke="none" />
       <path d={roofD} fill="rgba(0,0,0,0.12)" strokeWidth={0} />
-      {/* Door */}
       <rect
         x={cx - s * 0.2}
         y={cy + s * 0.38}
@@ -89,11 +89,11 @@ function City({ cx, cy, color, s }: { cx: number; cy: number; color: string; s: 
 
   return (
     <g>
-      <path d={d} fill={color} stroke="#222" strokeWidth={1.2} strokeLinejoin="round" />
-      {/* Tower roof shading */}
+      {/* Light border outline behind main shape */}
+      <path d={d} fill="none" stroke="rgba(255,255,255,0.62)" strokeWidth={2.2} strokeLinejoin="round" />
+      <path d={d} fill={color} stroke="none" />
       <path d={towerD} fill="rgba(0,0,0,0.1)" strokeWidth={0} />
-      {/* Dividing line between tower and hall */}
-      <line x1={towerRX} y1={hallTop} x2={towerRX} y2={baseBottom} stroke="#222" strokeWidth={0.8} opacity={0.5} />
+      <line x1={towerRX} y1={hallTop} x2={towerRX} y2={baseBottom} stroke="rgba(0,0,0,0.25)" strokeWidth={0.8} />
       {/* Tower window */}
       <rect
         x={leftX + s * 0.18}

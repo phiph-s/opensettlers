@@ -40,8 +40,8 @@ export function ResourceHand({ player, portRates, playerId }: Props) {
       display: 'flex',
       gap: 6,
       padding: '8px 12px',
-      background: 'rgba(255,255,255,0.5)',
-      border: '1px solid #c9bfae',
+      background: 'var(--ui-overlay-bg)',
+      border: '1px solid var(--ui-border)',
       borderRadius: 10,
       flexShrink: 0,
     }}>

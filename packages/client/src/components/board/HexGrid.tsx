@@ -140,9 +140,10 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         if (hex.terrain === 'sea') return null;
         const center = layout.hexCenters[hk];
         if (!center) return null;
+        const rolledSum = gameState.diceRoll ? gameState.diceRoll[0] + gameState.diceRoll[1] : null;
         return (
           <g key={hk}>
-            <HexTile hex={hex} center={center} size={layout.size} />
+            <HexTile hex={hex} center={center} size={layout.size} rolledNumber={rolledSum} />
             {canMoveRobber && !hex.hasRobber && (
               <RobberSpot
                 hex={hex}

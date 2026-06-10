@@ -73,7 +73,7 @@ export function ActivityLog({ players }: Props) {
       const label = payload.buildingType === 'road' ? 'a road'
         : payload.buildingType === 'settlement' ? 'a settlement'
         : payload.buildingType === 'city' ? 'a city' : payload.buildingType;
-      addEntry(`${getName(payload.playerId)} built ${label}`, '#374151');
+      addEntry(`${getName(payload.playerId)} built ${label}`);
     };
 
     const onRobberMoved = (payload: { byPlayerId: string }) => {

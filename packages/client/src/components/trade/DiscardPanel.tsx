@@ -36,17 +36,17 @@ export function DiscardPanel({ me, count }: Props) {
       zIndex: 50,
     }}>
       <div style={{
-        background: '#fffdf7',
-        border: '2px solid #c9bfae',
+        background: 'var(--ui-card-bg)',
+        border: '2px solid var(--ui-card-border)',
         borderRadius: 14,
         padding: '24px 28px',
         minWidth: 300,
         boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#2c2516', marginBottom: 4 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ui-text)', marginBottom: 4 }}>
           Discard {count} cards
         </div>
-        <div style={{ fontSize: 12, color: '#7a6d5e', marginBottom: 18 }}>
+        <div style={{ fontSize: 12, color: 'var(--ui-text-muted)', marginBottom: 18 }}>
           A 7 was rolled — select {count} card{count !== 1 ? 's' : ''} to discard.{' '}
           <span style={{ color: remaining > 0 ? '#b5550a' : '#27ae60', fontWeight: 600 }}>
             {remaining > 0 ? `${remaining} left` : 'Ready ✓'}
@@ -135,9 +135,9 @@ export function DiscardPanel({ me, count }: Props) {
 function stepBtn(enabled: boolean): React.CSSProperties {
   return {
     width: 28, height: 28,
-    background: enabled ? '#f2ede4' : '#ece8e2',
-    color: enabled ? '#6b4c11' : '#c0b49a',
-    border: `1px solid ${enabled ? '#c9bfae' : '#e0dbd4'}`,
+    background: enabled ? 'var(--ui-input-bg)' : 'var(--ui-btn-muted)',
+    color: enabled ? 'var(--ui-input-text)' : 'var(--ui-text-faint)',
+    border: `1px solid ${enabled ? 'var(--ui-card-border)' : 'var(--ui-border)'}`,
     borderRadius: 6,
     cursor: enabled ? 'pointer' : 'not-allowed',
     fontWeight: 700,

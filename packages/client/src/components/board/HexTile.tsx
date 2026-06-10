@@ -2,6 +2,7 @@ import React from 'react';
 import { hexPolygonPoints } from '@opensettlers/shared';
 import type { Hex, TerrainType } from '@opensettlers/shared';
 import type { Point } from '@opensettlers/shared';
+import '../hud/animations.css';
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
   forest: '#2d6a27',
@@ -26,18 +27,29 @@ interface Props {
   hex: Hex;
   center: Point;
   size: number;
-  onClick?: () => void;
+  rolledNumber?: number | null;
 }
 
-export function HexTile({ hex, center, size }: Props) {
+export function HexTile({ hex, center, size, rolledNumber }: Props) {
   const points = hexPolygonPoints(center, size * 0.97);
   const color = TERRAIN_COLORS[hex.terrain];
   const pattern = TERRAIN_PATTERN[hex.terrain];
+  const isRolled = rolledNumber != null && hex.numberToken === rolledNumber;
 
   return (
     <g>
       <polygon points={points} fill={color} stroke="#111" strokeWidth={1.5} />
       {pattern && <polygon points={points} fill={pattern} stroke="none" />}
+      {/* Dice-roll flash overlay */}
+      {isRolled && (
+        <polygon
+          points={hexPolygonPoints(center, size * 0.92)}
+          fill="rgba(255,235,50,0.3)"
+          stroke="rgba(255,215,0,0.9)"
+          strokeWidth={3}
+          className="hex-roll-flash"
+        />
+      )}
       {hex.numberToken !== null && (
         <>
           <circle cx={center.x} cy={center.y} r={size * 0.22} fill="#f5e6c8" stroke="#555" strokeWidth={1} />

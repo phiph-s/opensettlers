@@ -6,7 +6,7 @@ import React from 'react';
  */
 export function OceanBackground() {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: -1, background: '#1a6b9a' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: -1, background: 'var(--ocean-bg)' }}>
       <svg
         width="100%"
         height="100%"
