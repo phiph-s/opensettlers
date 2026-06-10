@@ -25,11 +25,12 @@ export type TerrainType =
   | 'mountains'
   | 'desert'
   | 'sea'
-  | 'clouds';
+  | 'clouds'
+  | 'gold';
 
 export type PlayerColor = 'red' | 'blue' | 'orange' | 'black' | 'green' | 'purple' | 'yellow' | 'pink';
 
-export const TERRAIN_TO_RESOURCE: Record<Exclude<TerrainType, 'desert' | 'sea' | 'clouds'>, Resource> = {
+export const TERRAIN_TO_RESOURCE: Record<Exclude<TerrainType, 'desert' | 'sea' | 'clouds' | 'gold'>, Resource> = {
   forest: 'wood',
   hills: 'brick',
   fields: 'wheat',

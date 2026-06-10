@@ -18,6 +18,7 @@ import { DiceDisplay } from '../components/hud/DiceDisplay.js';
 import { ActivityLog } from '../components/panel/ActivityLog.js';
 import { BankPanel } from '../components/panel/BankPanel.js';
 import { StealDialog } from '../components/hud/StealDialog.js';
+import { GoldSelectPanel } from '../components/hud/GoldSelectPanel.js';
 import { ResourceFlowLayer } from '../components/hud/ResourceFlowLayer.js';
 import { AchievementBanner } from '../components/hud/AchievementBanner.js';
 import { OceanBackground } from '../components/board/OceanBackground.js';
@@ -47,7 +48,7 @@ export function GameScreen() {
 
   if (!gameState) return null;
 
-  const { players, activePlayerIndex, phase, phaseDeadline, pendingDiscards } = gameState;
+  const { players, activePlayerIndex, phase, phaseDeadline, pendingDiscards, pendingGoldChoices } = gameState;
   const activePlayer = players[activePlayerIndex];
   const me = players.find((p) => p.id === myPlayerId);
   const myDiscardCount = myPlayerId ? (pendingDiscards[myPlayerId] ?? 0) : 0;
@@ -225,6 +226,11 @@ export function GameScreen() {
       {/* Discard modal */}
       {me && myDiscardCount > 0 && (
         <DiscardPanel me={me} count={myDiscardCount} />
+      )}
+
+      {/* Gold selection modal */}
+      {myPlayerId && (pendingGoldChoices?.[myPlayerId] ?? 0) > 0 && (
+        <GoldSelectPanel needed={pendingGoldChoices![myPlayerId]!} />
       )}
 
       {/* Achievement banners — longest road / largest army */}

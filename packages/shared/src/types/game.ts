@@ -15,6 +15,7 @@ export type TurnPhase =
   | 'DEV_ROAD_BUILDING'
   | 'YEAR_OF_PLENTY_SELECT'
   | 'MONOPOLY_SELECT'
+  | 'GOLD_SELECT'
   | 'GAME_OVER';
 
 export interface TradeOffer {
@@ -55,6 +56,7 @@ export interface GameState {
   cloudOriginKeys: string[];
   bank: Record<import('./primitives.js').Resource, number>;
   winTarget: number;
+  pendingGoldChoices: Record<string, number>;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';
@@ -72,6 +74,8 @@ export interface LobbySettings {
   balancedDice: boolean;
   friendlyRobber: boolean;
   vpToWin: number;
+  extraBuildings: boolean;
+  randomizeOrder: boolean;
 }
 
 export interface LobbySlot {

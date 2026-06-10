@@ -4,6 +4,7 @@ import type { TimerSettings } from '../types/game.js';
 export const WIN_VP = 10;
 export const MAX_HAND_SIZE_BEFORE_DISCARD = 7;
 export const PIECES_PER_PLAYER = { settlements: 5, cities: 4, roads: 15 } as const;
+export const EXTRA_PIECES_PER_PLAYER = { settlements: 7, cities: 6, roads: 20 } as const;
 export const LARGEST_ARMY_MINIMUM = 3;
 export const LONGEST_ROAD_MINIMUM = 5;
 export const REJOIN_WINDOW_MS = 60_000;
@@ -42,4 +43,5 @@ export const DEFAULT_TIMER_SECONDS: TimerSettings = {
   DEV_ROAD_BUILDING: 30,
   YEAR_OF_PLENTY_SELECT: 20,
   MONOPOLY_SELECT: 20,
+  GOLD_SELECT: 25,
 };

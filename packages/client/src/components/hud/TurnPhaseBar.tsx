@@ -22,6 +22,7 @@ const PHASE_LABELS: Partial<Record<string, string>> = {
   DEV_ROAD_BUILDING: 'Place Roads (Road Building)',
   YEAR_OF_PLENTY_SELECT: 'Year of Plenty',
   MONOPOLY_SELECT: 'Monopoly',
+  GOLD_SELECT: 'Gold — Choose Resources',
   GAME_OVER: 'Game Over!',
 };
 

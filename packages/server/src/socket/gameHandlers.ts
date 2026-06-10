@@ -65,6 +65,10 @@ export function registerGameHandlers(socket: S, io: IO, manager: LobbyManager): 
     handle(socket, manager, (e, pid) => e.handleDiscard(pid, resources));
   });
 
+  socket.on('game:select_gold', ({ resources }) => {
+    handle(socket, manager, (e, pid) => e.handleGoldSelect(pid, resources));
+  });
+
   socket.on('game:move_robber', ({ hexCoord }) => {
     handle(socket, manager, (e, pid) => e.handleMoveRobber(pid, hexCoord));
   });

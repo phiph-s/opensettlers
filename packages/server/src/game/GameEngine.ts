@@ -28,6 +28,7 @@ import {
   deductCost,
   grantResources,
   distributeResources,
+  computeGoldChoices,
   handTotal,
   autoDiscard,
 } from './ResourceManager.js';
@@ -56,7 +57,7 @@ import {
   isActivePlayer,
   nextSetupPlayerIndex,
 } from './TurnStateMachine.js';
-import { PIECES_PER_PLAYER } from '@opensettlers/shared';
+import { PIECES_PER_PLAYER, EXTRA_PIECES_PER_PLAYER } from '@opensettlers/shared';
 
 type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
 
@@ -89,7 +90,18 @@ export class GameEngine {
     const { board, secrets } = buildBoard(mapTemplate, Math.random);
     this.hexSecrets = secrets;
 
-    const gamePlayers: Player[] = players.map((p, i) => ({
+    const useExtraPieces = settings.extraBuildings || settings.vpToWin >= 16;
+    const pieces = useExtraPieces ? EXTRA_PIECES_PER_PLAYER : PIECES_PER_PLAYER;
+
+    let orderedPlayers = [...players];
+    if (settings.randomizeOrder) {
+      for (let i = orderedPlayers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [orderedPlayers[i], orderedPlayers[j]] = [orderedPlayers[j]!, orderedPlayers[i]!];
+      }
+    }
+
+    const gamePlayers: Player[] = orderedPlayers.map((p, i) => ({
       id: p.id,
       name: p.name,
       color: p.color as Player['color'],
@@ -97,9 +109,9 @@ export class GameEngine {
       hand: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
       devCards: [],
       knightsPlayed: 0,
-      settlementsLeft: PIECES_PER_PLAYER.settlements,
-      citiesLeft: PIECES_PER_PLAYER.cities,
-      roadsLeft: PIECES_PER_PLAYER.roads,
+      settlementsLeft: pieces.settlements,
+      citiesLeft: pieces.cities,
+      roadsLeft: pieces.roads,
       hasLongestRoad: false,
       hasLargestArmy: false,
       isConnected: true,
@@ -135,6 +147,7 @@ export class GameEngine {
       cloudOriginKeys: mapTemplate.cloudedCoords?.map((coord) => cubeKey(coord)) ?? [],
       bank: { wood: settings.bankResourceCount, brick: settings.bankResourceCount, wheat: settings.bankResourceCount, sheep: settings.bankResourceCount, ore: settings.bankResourceCount },
       winTarget: settings.vpToWin,
+      pendingGoldChoices: {},
     };
   }
 
@@ -284,6 +297,16 @@ export class GameEngine {
       case 'MONOPOLY_SELECT':
         this.advancePhase('BUILD_PHASE');
         break;
+      case 'GOLD_SELECT': {
+        // Auto-pick ore and wheat for each pending player
+        const autoResources: Resource[] = ['ore', 'wheat'];
+        for (const [pid, count] of Object.entries(this.state.pendingGoldChoices)) {
+          const picks: Resource[] = [];
+          for (let i = 0; i < count; i++) picks.push(autoResources[i % 2]!);
+          this.handleGoldSelect(pid, picks);
+        }
+        break;
+      }
     }
   }
 
@@ -381,7 +404,14 @@ export class GameEngine {
     } else {
       const distributions = distributeResources(this.state.board, this.state.players, roll, this.state.bank);
       this.io.to(this.lobbyId).emit('game:resources_distributed', { distributions });
-      this.advancePhase('BUILD_PHASE');
+
+      const goldChoices = computeGoldChoices(this.state.board, this.state.players, roll);
+      if (Object.keys(goldChoices).length > 0) {
+        this.state.pendingGoldChoices = goldChoices;
+        this.advancePhase('GOLD_SELECT');
+      } else {
+        this.advancePhase('BUILD_PHASE');
+      }
     }
     return null;
   }
@@ -412,6 +442,32 @@ export class GameEngine {
     if (Object.keys(this.state.pendingDiscards).length === 0) {
       this.timer.cancel(this.gameId);
       this.advancePhase('ROBBER_PLACEMENT');
+    } else {
+      this.broadcastState();
+    }
+    return null;
+  }
+
+  // ── Gold Select ────────────────────────────────────────────────────────────
+
+  handleGoldSelect(playerId: string, resources: Resource[]): string | null {
+    const needed = this.state.pendingGoldChoices[playerId];
+    if (needed === undefined) return 'Not expected to pick gold resources';
+    if (resources.length !== needed) return `Must pick exactly ${needed} resource(s)`;
+
+    const player = this.state.players.find((p) => p.id === playerId);
+    if (!player) return 'Player not found';
+
+    for (const res of resources) {
+      player.hand[res] = (player.hand[res] ?? 0) + 1;
+      this.state.bank[res] = Math.max(0, (this.state.bank[res] ?? 0) - 1);
+    }
+
+    delete this.state.pendingGoldChoices[playerId];
+
+    if (Object.keys(this.state.pendingGoldChoices).length === 0) {
+      this.timer.cancel(this.gameId);
+      this.advancePhase('BUILD_PHASE');
     } else {
       this.broadcastState();
     }

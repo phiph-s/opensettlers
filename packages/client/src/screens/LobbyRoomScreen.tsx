@@ -547,32 +547,42 @@ export function LobbyRoomScreen() {
                 </div>
               </div>
 
-              {/* Balanced Dice — box toggle */}
-              {(['balancedDice', 'friendlyRobber'] as const).map((key) => {
-                const on = settings[key];
-                const label = key === 'balancedDice' ? 'Balanced Dice' : 'Friendly Robber';
-                const note  = key === 'balancedDice' ? 'Flatter bell curve' : "Can't target ≤3 VP";
+              {/* Boolean toggles: balancedDice, friendlyRobber, randomizeOrder, extraBuildings */}
+              {([
+                ['balancedDice',   'Balanced Dice',    'Flatter bell curve'],
+                ['friendlyRobber', 'Friendly Robber',  "Can't target ≤3 VP"],
+                ['randomizeOrder', 'Random Order',     'Shuffle seat order'],
+                ['extraBuildings', 'Extra Buildings',  '+2 settlements, +2 cities, +5 roads'],
+              ] as const).map(([key, label, note]) => {
+                const on = !!(settings as unknown as Record<string, unknown>)[key];
+                const forced = key === 'extraBuildings' && settings.vpToWin >= 16;
+                const effectiveOn = on || forced;
                 return (
                   <button
                     key={key}
-                    disabled={!isHost}
-                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { [key]: !on } })}
+                    disabled={!isHost || forced}
+                    onClick={() => !forced && isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { [key]: !on } })}
                     style={{
                       flex: 1,
-                      background: on ? th.cardSelBg : th.settingsBg,
-                      border: `1.5px solid ${on ? th.cardSelBorder : th.cardUnselBorder}`,
+                      background: effectiveOn ? th.cardSelBg : th.settingsBg,
+                      border: `1.5px solid ${effectiveOn ? th.cardSelBorder : th.cardUnselBorder}`,
                       borderRadius: 14,
                       padding: '12px 14px',
-                      cursor: isHost ? 'pointer' : 'default',
+                      cursor: (!isHost || forced) ? 'default' : 'pointer',
                       textAlign: 'left',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
                       transition: 'background 0.15s, border-color 0.15s',
+                      opacity: forced ? 0.85 : 1,
                     }}
                   >
-                    <div style={{ fontSize: 12, color: on ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 10, color: on ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>{note}</div>
+                    <div style={{ fontSize: 12, color: effectiveOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>
+                      {label}{forced ? ' ✓' : ''}
+                    </div>
+                    <div style={{ fontSize: 10, color: effectiveOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>
+                      {forced ? 'Required at 16 VP' : note}
+                    </div>
                   </button>
                 );
               })}
@@ -591,7 +601,7 @@ export function LobbyRoomScreen() {
               }}>
                 <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Victory Points</div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  {[8, 10, 12].map((v) => {
+                  {[8, 10, 12, 14, 16].map((v) => {
                     const sel = settings.vpToWin === v;
                     return (
                       <button
@@ -605,7 +615,7 @@ export function LobbyRoomScreen() {
                           borderRadius: 8,
                           padding: '5px 0',
                           cursor: isHost ? 'pointer' : 'default',
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: 700,
                           color: sel ? th.cardSelTitleColor : th.settingNote,
                           fontFamily: "'Cinzel', Georgia, serif",

@@ -89,6 +89,26 @@ export function TerrainPatterns() {
         <ellipse cx="18" cy="25" rx="11" ry="3"  fill="rgba(180,200,230,0.30)" />
         <ellipse cx="58" cy="48" rx="13" ry="3"  fill="rgba(180,200,230,0.25)" />
       </pattern>
+
+      {/* GOLD: gleaming coins on dark amber — free resource selection */}
+      <pattern id="pat-gold" width="60" height="52" patternUnits="userSpaceOnUse">
+        <rect width="60" height="52" fill="#b8860b" />
+        {/* Radial shimmer */}
+        <circle cx="30" cy="26" r="22" fill="rgba(255,220,60,0.12)" />
+        {/* Coin 1 — upper-left */}
+        <circle cx="16" cy="16" r="9" fill="#e8c030" />
+        <circle cx="16" cy="16" r="9" fill="none" stroke="#c8980a" strokeWidth="1.5" />
+        <circle cx="16" cy="16" r="6" fill="none" stroke="rgba(255,255,180,0.4)" strokeWidth="0.8" />
+        <text x="16" y="20" textAnchor="middle" fontSize="8" fill="#8a5a00" fontWeight="bold">✦</text>
+        {/* Coin 2 — lower-right */}
+        <circle cx="44" cy="36" r="9" fill="#e8c030" />
+        <circle cx="44" cy="36" r="9" fill="none" stroke="#c8980a" strokeWidth="1.5" />
+        <circle cx="44" cy="36" r="6" fill="none" stroke="rgba(255,255,180,0.4)" strokeWidth="0.8" />
+        <text x="44" y="40" textAnchor="middle" fontSize="8" fill="#8a5a00" fontWeight="bold">✦</text>
+        {/* Glint highlights */}
+        <circle cx="12" cy="12" r="2" fill="rgba(255,255,220,0.7)" />
+        <circle cx="40" cy="32" r="2" fill="rgba(255,255,220,0.7)" />
+      </pattern>
     </>
   );
 }

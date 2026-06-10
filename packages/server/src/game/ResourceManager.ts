@@ -1,5 +1,5 @@
 import { TERRAIN_TO_RESOURCE, canAfford, hexVertexKeys } from '@opensettlers/shared';
-import type { GameBoard, GameState, Player, Resource } from '@opensettlers/shared';
+import type { GameBoard, Player, Resource } from '@opensettlers/shared';
 import type { Cost } from '@opensettlers/shared';
 
 export { canAfford };
@@ -69,6 +69,29 @@ export function distributeResources(
   }
 
   return distributions;
+}
+
+/**
+ * Returns a map of playerId -> number of resources they may pick freely
+ * because of adjacent gold hexes matching the roll.
+ */
+export function computeGoldChoices(
+  board: GameBoard,
+  players: Player[],
+  roll: number,
+): Record<string, number> {
+  const choices: Record<string, number> = {};
+  for (const hex of Object.values(board.hexes)) {
+    if (hex.terrain !== 'gold' || hex.hasRobber || hex.numberToken !== roll) continue;
+    for (const vk of hexVertexKeys(hex.coord)) {
+      const vertex = board.vertices[vk];
+      if (!vertex?.building) continue;
+      const amount = vertex.building.type === 'city' ? 2 : 1;
+      const pid = vertex.building.owner;
+      choices[pid] = (choices[pid] ?? 0) + amount;
+    }
+  }
+  return choices;
 }
 
 /** Cheapest resources to discard (prioritize excess of any type) */

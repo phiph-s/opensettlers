@@ -53,13 +53,14 @@ export function MapPreview({ hexes, width, height, dark = false }: Props) {
         const cy = px.y + offsetY;
         const isDesert = h.terrain === 'desert';
         const isClouds = h.terrain === 'clouds';
+        const isGold = h.terrain === 'gold';
         return (
           <polygon
             key={i}
             points={hexCorners(cx, cy, hexSize * 0.9)}
-            fill={isDesert ? 'none' : isClouds ? cloudFill : normalFill}
-            stroke={isDesert ? desertStroke : 'none'}
-            strokeWidth={isDesert ? 1 : 0}
+            fill={isDesert ? 'none' : isGold ? '#c8a020' : isClouds ? cloudFill : normalFill}
+            stroke={isDesert ? desertStroke : isGold ? '#f0d060' : 'none'}
+            strokeWidth={isDesert ? 1 : isGold ? 0.8 : 0}
           />
         );
       })}

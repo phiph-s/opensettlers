@@ -65,6 +65,9 @@ export interface ClientToServerEvents {
   'game:play_monopoly': (payload: { resource: Resource }) => void;
   'game:play_vp': () => void;
 
+  // Gold selection
+  'game:select_gold': (payload: { resources: Resource[] }) => void;
+
   // Trade — maritime
   'game:maritime_trade': (payload: {
     giving: Partial<Record<Resource, number>>;
