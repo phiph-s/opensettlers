@@ -68,7 +68,7 @@ export class BotController {
     switch (state.phase) {
       case 'SETUP_PLACE_SETTLEMENT': {
         if (!isActive) return;
-        const vertices = validSetupVertices(state.board);
+        const vertices = validSetupVertices(state.board, state.cloudOriginKeys);
         if (vertices.length > 0) {
           this.engine.handlePlaceSetupSettlement(this.playerId, vertices[0]!);
         }
