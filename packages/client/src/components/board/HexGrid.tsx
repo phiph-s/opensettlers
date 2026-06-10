@@ -59,11 +59,11 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   }, [phase, onBuildModeChange]);
 
   const onHexClick = useCallback((hk: HexKey) => {
-    if (phase === 'ROBBER_PLACEMENT') {
+    if (phase === 'ROBBER_PLACEMENT' && validMoves.robberHexes.has(hk)) {
       const hex = board.hexes[hk];
       if (hex) socket.emit('game:move_robber', { hexCoord: hex.coord });
     }
-  }, [phase, board]);
+  }, [phase, board, validMoves.robberHexes]);
 
   // During setup/forced phases show all valid spots; in BUILD_PHASE only show the selected type
   const isSetupSettlement = phase === 'SETUP_PLACE_SETTLEMENT';
@@ -72,9 +72,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   const showSettlementVertices = isSetupSettlement || (phase === 'BUILD_PHASE' && buildMode === 'settlement');
   const showCityVertices = phase === 'BUILD_PHASE' && buildMode === 'city';
 
-  const isRobberPhase = phase === 'ROBBER_PLACEMENT';
   const activeId = gameState.players[gameState.activePlayerIndex]?.id;
-  const canMoveRobber = isRobberPhase && activeId === myPlayerId;
 
   // Group port vertices into pairs by proximity, place marker at center of adjacent sea hex
   const portMarkers = useMemo(() => {
@@ -181,7 +179,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         return (
           <g key={hk}>
             <HexTile hex={hex} center={center} size={layout.size} rolledNumber={rolledSum} />
-            {canMoveRobber && !hex.hasRobber && (
+            {validMoves.robberHexes.has(hk) && (
               <RobberSpot
                 hex={hex}
                 center={center}

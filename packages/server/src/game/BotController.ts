@@ -4,6 +4,7 @@ import {
   validSettlementVertices,
   validCityVertices,
   validRoadEdges,
+  validRobberHexKeys,
   BUILDING_COSTS,
   hexVertexKeys,
 } from '@opensettlers/shared';
@@ -92,28 +93,6 @@ function robberOnOwnHex(state: GameState, playerId: string): boolean {
   return false;
 }
 
-/** Score a hex for robber placement: higher = better target. Does not target own hexes. */
-function scoreRobberHex(state: GameState, hk: string, playerId: string): number {
-  const hex = state.board.hexes[hk];
-  if (!hex || hex.terrain === 'sea' || hex.terrain === 'clouds' || hex.hasRobber) return -1;
-
-  // Never place on own hexes
-  for (const vk of hexVertexKeys(hex.coord)) {
-    const v = state.board.vertices[vk];
-    if (v?.building?.owner === playerId) return -1;
-  }
-
-  // Score = sum of (pip-weight × building-value) for opponent buildings
-  const p = pips(hex.numberToken);
-  let score = 0;
-  for (const vk of hexVertexKeys(hex.coord)) {
-    const v = state.board.vertices[vk];
-    if (v?.building && v.building.owner !== playerId) {
-      score += p * (v.building.type === 'city' ? 2 : 1);
-    }
-  }
-  return score;
-}
 
 /** Try a 4:1 maritime trade to get one resource we need toward a goal. */
 function tryMaritimeTrade(
@@ -293,29 +272,27 @@ export class BotController {
       case 'ROBBER_PLACEMENT': {
         if (!isActive) return;
         const board = state.board;
+        // validRobberHexKeys already applies the friendly-robber rule
+        const candidates = validRobberHexKeys(state, this.playerId);
         let bestCoord: CubeCoord | null = null;
         let bestScore = -1;
-        for (const [hk, hex] of Object.entries(board.hexes)) {
-          const score = scoreRobberHex(state, hk, this.playerId);
-          if (score > bestScore) { bestScore = score; bestCoord = hex.coord; }
-        }
-        // Fallback: pick any non-sea, non-robber hex we don't own
-        if (bestCoord === null || bestScore < 0) {
-          for (const hex of Object.values(board.hexes)) {
-            if (hex.terrain !== 'sea' && !hex.hasRobber) {
-              // Ensure no own buildings
-              const hasOwn = hexVertexKeys(hex.coord).some(
-                (vk) => board.vertices[vk]?.building?.owner === this.playerId
-              );
-              if (!hasOwn) { bestCoord = hex.coord; break; }
+        for (const hk of candidates) {
+          const hex = board.hexes[hk];
+          if (!hex) continue;
+          // Score: pip-weight × opponent building value on this hex
+          const p = pips(hex.numberToken);
+          let score = 0;
+          for (const vk of hexVertexKeys(hex.coord)) {
+            const v = board.vertices[vk];
+            if (v?.building && v.building.owner !== this.playerId) {
+              score += p * (v.building.type === 'city' ? 2 : 1);
             }
           }
-          // Last resort: any non-sea hex
-          if (bestCoord === null) {
-            bestCoord = Object.values(board.hexes).find(
-              (h) => h.terrain !== 'sea' && !h.hasRobber
-            )?.coord ?? null;
-          }
+          if (score > bestScore) { bestScore = score; bestCoord = hex.coord; }
+        }
+        // Fallback: any valid candidate
+        if (!bestCoord && candidates.length > 0) {
+          bestCoord = board.hexes[candidates[0]!]?.coord ?? null;
         }
         if (bestCoord) this.engine.handleMoveRobber(this.playerId, bestCoord);
         break;
@@ -372,24 +349,29 @@ export class BotController {
           return;
         }
 
-        // 3. Try maritime trade toward settlement (if we can get there in 1 trade)
+        // 3. Trade toward top-priority build goal
         if (canSettlement) {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.settlement, this.engine, this.playerId)) return;
         } else if (canCity) {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.city, this.engine, this.playerId)) return;
         }
 
-        // 4. Build road if affordable and useful (more roads = more settlement spots)
+        // 4. Buy dev card if affordable — good resource sink, deck permitting
+        if (canAfford(me.hand, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0) {
+          const err = this.engine.handleBuyDevCard(this.playerId);
+          if (err === null) return;
+        }
+
+        // 5. Trade surplus toward a dev card when hand is large (prevents hoarding)
+        if (handTotal(me.hand) > 7 && state.devCardDeckSize > 0) {
+          if (tryMaritimeTrade(state, me, BUILDING_COSTS.dev_card, this.engine, this.playerId)) return;
+        }
+
+        // 6. Build road if affordable and useful (more roads = more settlement spots)
         if (canAfford(me.hand, BUILDING_COSTS.road) && canRoad) {
           const edges = validRoadEdges(board, this.playerId);
           this.engine.handleBuildRoad(this.playerId, edges[0]!);
           return;
-        }
-
-        // 5. Buy dev card if affordable and deck not empty
-        if (canAfford(me.hand, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0) {
-          const err = this.engine.handleBuyDevCard(this.playerId);
-          if (err === null) return;
         }
 
         this.engine.handleEndTurn(this.playerId);

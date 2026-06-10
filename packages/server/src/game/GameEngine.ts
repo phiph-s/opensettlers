@@ -150,6 +150,7 @@ export class GameEngine {
       winTarget: settings.vpToWin,
       pendingGoldChoices: {},
       devCardPlayedThisTurn: false,
+      friendlyRobber: settings.friendlyRobber,
     };
   }
 

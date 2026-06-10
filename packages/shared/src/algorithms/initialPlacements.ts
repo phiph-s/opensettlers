@@ -1,4 +1,6 @@
-import type { EdgeKey, GameBoard, VertexKey } from '../types/board.js';
+import type { EdgeKey, GameBoard, HexKey, VertexKey } from '../types/board.js';
+import type { GameState } from '../types/game.js';
+import { hexVertexKeys } from '../coords/vertexKey.js';
 
 /** Returns all vertex keys valid for setup settlement placement */
 export function validSetupVertices(board: GameBoard, cloudOriginKeys?: string[]): VertexKey[] {
@@ -83,4 +85,40 @@ export function validRoadEdges(board: GameBoard, playerId: string): EdgeKey[] {
       });
     })
     .map((e) => e.key);
+}
+
+/**
+ * Returns all hex keys the active player may legally move the robber to.
+ * Excludes sea hexes, the current robber hex, and — when friendlyRobber is on —
+ * hexes whose only adjacent opponent buildings belong to players with ≤ 3 VP.
+ */
+export function validRobberHexKeys(state: GameState, playerId: string): HexKey[] {
+  const currentRobberKey = Object.keys(state.board.hexes).find(
+    (hk) => state.board.hexes[hk]?.hasRobber
+  );
+
+  return Object.entries(state.board.hexes)
+    .filter(([hk, hex]) => {
+      if (hex.terrain === 'sea') return false;
+      if (hk === currentRobberKey) return false;
+
+      if (state.friendlyRobber) {
+        // Collect distinct opponent owners adjacent to this hex
+        const opponentOwners = hexVertexKeys(hex.coord)
+          .map((vk) => state.board.vertices[vk]?.building)
+          .filter((b): b is NonNullable<typeof b> => !!b && b.owner !== playerId)
+          .map((b) => b.owner);
+
+        if (opponentOwners.length > 0) {
+          const allLowVP = opponentOwners.every((oid) => {
+            const p = state.players.find((pl) => pl.id === oid);
+            return p && p.victoryPoints <= 3;
+          });
+          if (allLowVP) return false;
+        }
+      }
+
+      return true;
+    })
+    .map(([hk]) => hk);
 }

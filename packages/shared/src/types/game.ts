@@ -58,6 +58,7 @@ export interface GameState {
   winTarget: number;
   pendingGoldChoices: Record<string, number>;
   devCardPlayedThisTurn: boolean;
+  friendlyRobber: boolean;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';

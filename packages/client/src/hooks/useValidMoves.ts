@@ -5,6 +5,7 @@ import {
   validSettlementVertices,
   validCityVertices,
   validRoadEdges,
+  validRobberHexKeys,
   BUILDING_COSTS,
 } from '@opensettlers/shared';
 import type { Player, Resource } from '@opensettlers/shared';
@@ -22,6 +23,7 @@ export interface ValidMoves {
   settlementVertices: Set<VertexKey>;
   roadEdges: Set<EdgeKey>;
   cityVertices: Set<VertexKey>;
+  robberHexes: Set<string>;
   canRoll: boolean;
   canEndTurn: boolean;
   canBuyDevCard: boolean;
@@ -35,6 +37,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
       settlementVertices: new Set(),
       roadEdges: new Set(),
       cityVertices: new Set(),
+      robberHexes: new Set(),
       canRoll: false,
       canEndTurn: false,
       canBuyDevCard: false,
@@ -74,6 +77,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
         cityVertices: canAfford(me, BUILDING_COSTS.city) && me.citiesLeft > 0
           ? new Set(validCityVertices(board, myPlayerId))
           : new Set(),
+        robberHexes: new Set(),
         canRoll: false,
         canEndTurn: true,
         canBuyDevCard: canAfford(me, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0,
@@ -91,6 +95,13 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
 
     if ((phase === 'PRE_ROLL' || phase === 'ROLL') && isActive) {
       return { ...empty, canRoll: true };
+    }
+
+    if (phase === 'ROBBER_PLACEMENT' && isActive) {
+      return {
+        ...empty,
+        robberHexes: new Set(validRobberHexKeys(state, myPlayerId)),
+      };
     }
 
     return empty;
