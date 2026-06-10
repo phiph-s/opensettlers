@@ -72,6 +72,7 @@ export class GameEngine {
   private readyForNext = new Set<string>();
   private bots = new Map<string, BotController>();
   private hexSecrets = new Map<string, HexSecret>();
+  private knightBeforeRoll = false;
 
   constructor(
     lobbyId: string,
@@ -281,7 +282,7 @@ export class GameEngine {
         if (this.state.robberCandidates.length > 0) {
           this.handleSteal(activePlayer.id, this.state.robberCandidates[0]!);
         } else {
-          this.advancePhase('BUILD_PHASE');
+          this.advancePhaseAfterRobber();
         }
         break;
       case 'TRADE_OFFER_PENDING':
@@ -510,9 +511,9 @@ export class GameEngine {
       this.advancePhase('STEAL');
     } else if (candidates.length === 1) {
       this.doSteal(playerId, candidates[0]!);
-      this.advancePhase('BUILD_PHASE');
+      this.advancePhaseAfterRobber();
     } else {
-      this.advancePhase('BUILD_PHASE');
+      this.advancePhaseAfterRobber();
     }
     return null;
   }
@@ -525,8 +526,17 @@ export class GameEngine {
     this.doSteal(playerId, targetPlayerId);
     this.state.robberCandidates = [];
     this.timer.cancel(this.gameId);
-    this.advancePhase('BUILD_PHASE');
+    this.advancePhaseAfterRobber();
     return null;
+  }
+
+  private advancePhaseAfterRobber(): void {
+    if (this.knightBeforeRoll) {
+      this.knightBeforeRoll = false;
+      this.advancePhase('ROLL');
+    } else {
+      this.advancePhase('BUILD_PHASE');
+    }
   }
 
   private doSteal(byPlayerId: string, fromPlayerId: string): void {
@@ -667,6 +677,8 @@ export class GameEngine {
     const player = this.state.players.find((p) => p.id === playerId)!;
     const err = canPlayDevCard(player, 'knight', this.state.turnNumber);
     if (err) return err;
+
+    this.knightBeforeRoll = this.state.phase === 'PRE_ROLL';
 
     removeDevCard(player, 'knight', this.state.turnNumber);
     player.knightsPlayed++;
