@@ -24,71 +24,80 @@ function generateSeaHexes(landCoords: CubeCoord[], buffer: number): CubeCoord[] 
 }
 
 // ── Main island ─────────────────────────────────────────────────────────────
+//
+// The wasteland desert (5 hexes) forms a + cross through the CENTER of the
+// island, splitting it visually into left and right productive wings that are
+// joined only at the top and bottom rows.
+//
+//   r=-2:  . . .        ← top row (all productive)
+//   r=-1:  . . D . .    ← D = desert cuts in at center
+//   r=0:   . . D D D . .  ← widest desert band
+//   r=1:   . . D . .    ← D again
+//   r=2:  . . .         ← bottom row (all productive)
 
-// 17 productive hexes arranged around the central wasteland
 const MAIN_PRODUCTIVE: CubeCoord[] = [
-  // Top row
+  // Top row — connects left and right wings
   c(-1,-2), c(0,-2), c(1,-2),
-  // Upper-middle row (desert cluster starts at q=2)
-  c(-2,-1), c(-1,-1), c(0,-1), c(1,-1),
-  // Middle row (desert takes q=1,2,3)
-  c(-2, 0), c(-1, 0), c(0, 0),
-  // Lower-middle row (desert at q=2)
-  c(-2, 1), c(-1, 1), c(0, 1), c(1, 1),
-  // Bottom row
+  // Upper rows — left wing + right wing (desert at q=0 row r=-1)
+  c(-2,-1), c(-1,-1),   c(1,-1), c(2,-1),
+  // Middle rows — left wing + right wing (desert spans q=-1,0,1 at r=0)
+  c(-3, 0), c(-2, 0),             c(2, 0), c(3, 0),
+  // Lower rows — left wing + right wing (desert at q=0 row r=1)
+  c(-2, 1), c(-1, 1),   c(1, 1), c(2, 1),
+  // Bottom row — connects left and right wings
   c(-1, 2), c(0, 2), c(1, 2),
-]; // 17
+]; // 18 productive
 
-// 5-hex desert wasteland core — always fixed in the center-right
+// 5-hex cross-shaped wasteland — always fixed in the center
 const MAIN_DESERT: CubeCoord[] = [
-  c(2,-1),
-  c(1, 0), c(2, 0), c(3, 0),
-  c(2, 1),
-]; // 5
+  c(0,-1),
+  c(-1,0), c(0,0), c(1,0),
+  c(0, 1),
+]; // 5 desert
 
-// ── Foreign islands (discovery targets) ─────────────────────────────────────
+// ── Foreign islands (discovery targets, 2 hexes each) ───────────────────────
+// One in each quadrant; each is ≥ 3 hex-distance from the main island coast.
 
-// NE island — 2 hexes, distance 3 from main island
-const NE_ISLAND: CubeCoord[] = [
-  c(5,-4), c(6,-4),
-]; // 2
+const NE_ISLAND: CubeCoord[] = [ c(5,-3), c(6,-3) ]; // upper-right
+const NW_ISLAND: CubeCoord[] = [ c(-5,-3), c(-4,-3) ]; // upper-left
+const SE_ISLAND: CubeCoord[] = [ c(4, 3), c(5, 3) ]; // lower-right
+const SW_ISLAND: CubeCoord[] = [ c(-5, 3), c(-5, 4) ]; // lower-left
 
-// SW island — 2 hexes, distance 3 from main island
-const SW_ISLAND: CubeCoord[] = [
-  c(-5, 3), c(-5, 4),
-]; // 2
+// ── Full land coords ─────────────────────────────────────────────────────────
 
-// ── Full land + sea ──────────────────────────────────────────────────────────
+const ALL_PRODUCTIVE: CubeCoord[] = [
+  ...MAIN_PRODUCTIVE,
+  ...NE_ISLAND, ...NW_ISLAND, ...SE_ISLAND, ...SW_ISLAND,
+]; // 18 + 2+2+2+2 = 26
 
-const ALL_PRODUCTIVE: CubeCoord[] = [...MAIN_PRODUCTIVE, ...NE_ISLAND, ...SW_ISLAND]; // 21
-const ALL_LAND: CubeCoord[] = [...ALL_PRODUCTIVE, ...MAIN_DESERT]; // 26
+const ALL_LAND: CubeCoord[] = [...ALL_PRODUCTIVE, ...MAIN_DESERT]; // 31
 
 const SEA_COORDS = generateSeaHexes(ALL_LAND, 2);
 
-// ── Terrain pool for 21 productive hexes (shuffled by MapGenerator) ──────────
+// ── Terrain pool for 26 productive hexes (shuffled by MapGenerator) ──────────
 
 const TERRAIN_POOL: TerrainType[] = [
-  ...Array(5).fill('forest'),
-  ...Array(4).fill('fields'),
-  ...Array(5).fill('pasture'),
-  ...Array(4).fill('hills'),
-  ...Array(3).fill('mountains'),
-] as TerrainType[]; // 21 ✓
+  ...Array(6).fill('forest'),
+  ...Array(5).fill('fields'),
+  ...Array(6).fill('pasture'),
+  ...Array(5).fill('hills'),
+  ...Array(4).fill('mountains'),
+] as TerrainType[]; // 26 ✓
 
-// ── Number tokens for 21 productive hexes ────────────────────────────────────
+// ── Number tokens for 26 productive hexes ────────────────────────────────────
 
 const NUMBER_TOKENS: number[] = [
-  2,
+  2, 2,
   3, 3, 3,
-  4, 4,
-  5, 5,
+  4, 4, 4,
+  5, 5, 5,
   6, 6, 6,
   8, 8, 8,
-  9, 9,
-  10, 10,
+  9, 9, 9,
+  10, 10, 10,
   11, 11,
   12,
-]; // 21 ✓
+]; // 26 ✓
 
 // ── Ports ────────────────────────────────────────────────────────────────────
 
@@ -96,11 +105,13 @@ const PORT_TYPES: PortType[] = [
   'ore_2_1',
   'wood_2_1',
   'sheep_2_1',
+  'wheat_2_1',
+  'brick_2_1',
   'generic_3_1',
   'generic_3_1',
   'generic_3_1',
   'generic_3_1',
-]; // 7
+]; // 9
 
 // ── Map template ─────────────────────────────────────────────────────────────
 
@@ -113,7 +124,7 @@ export const WASTELAND_MAP: MapTemplate = {
       coord,
       terrain: TERRAIN_POOL[i] ?? ('forest' as TerrainType),
     })),
-    // Desert wasteland core — always fixed
+    // Desert wasteland cross — always fixed
     ...MAIN_DESERT.map((coord) => ({
       coord,
       terrain: 'desert' as TerrainType,

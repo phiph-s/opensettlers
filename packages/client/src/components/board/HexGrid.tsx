@@ -140,7 +140,11 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
           let pos: { x: number; y: number };
           if (seaHk) {
             const [q, r, s] = seaHk.split(',').map(Number);
-            pos = cubeToPixel({ q: q!, r: r!, s: s! }, layout.size);
+            const seaCenter = cubeToPixel({ q: q!, r: r!, s: s! }, layout.size);
+            // Lerp toward the shared edge midpoint (land-sea border) so ports sit closer to land
+            const edgeMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            const t = 0.55;
+            pos = { x: seaCenter.x + (edgeMid.x - seaCenter.x) * t, y: seaCenter.y + (edgeMid.y - seaCenter.y) * t };
           } else {
             // Fallback: midpoint pushed outward from centroid
             const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;

@@ -22,7 +22,10 @@ function hexCorners(cx: number, cy: number, size: number): string {
 export function MapPreview({ hexes, width, height, dark = false }: Props) {
   if (!hexes || hexes.length === 0) return null;
 
-  const positions = hexes.map((h) => hexToPixel(h.q, h.r, 1));
+  const landHexes = hexes.filter((h) => h.terrain !== 'sea');
+  if (landHexes.length === 0) return null;
+
+  const positions = landHexes.map((h) => hexToPixel(h.q, h.r, 1));
   const xs = positions.map((p) => p.x);
   const ys = positions.map((p) => p.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -47,7 +50,7 @@ export function MapPreview({ hexes, width, height, dark = false }: Props) {
 
   return (
     <svg width={width} height={height} style={{ display: 'block', pointerEvents: 'none' }}>
-      {hexes.map((h, i) => {
+      {landHexes.map((h, i) => {
         const px = hexToPixel(h.q, h.r, hexSize);
         const cx = px.x + offsetX;
         const cy = px.y + offsetY;

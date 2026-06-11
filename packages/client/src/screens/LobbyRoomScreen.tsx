@@ -439,6 +439,51 @@ export function LobbyRoomScreen() {
               🤖 Add Bot
             </button>
           )}
+
+          {/* Ready + Launch — below player list */}
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, color: th.textDim, fontStyle: 'italic', textAlign: 'center' }}>
+              {allReady ? '✓ All players ready' : `${occupied.filter((s) => s.ready).length}/${occupied.length} ready`}
+            </div>
+            {mySlot && (
+              <button
+                onClick={() => socket.emit('lobby:ready', { lobbyId: id, ready: !mySlot.ready })}
+                style={{
+                  background: mySlot.ready ? th.readyOnBg : th.readyOffBg,
+                  border: `1px solid ${mySlot.ready ? th.readyOnBorder : th.readyOffBorder}`,
+                  color: mySlot.ready ? th.readyOnText : th.readyOffText,
+                  borderRadius: 10, padding: '10px 0',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                  fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5,
+                  width: '100%', transition: 'all 0.15s',
+                }}
+              >
+                {mySlot.ready ? 'Not Ready' : '✓ Ready'}
+              </button>
+            )}
+            {isHost && (
+              <button
+                disabled={!allReady}
+                onClick={() => socket.emit('lobby:start', { lobbyId: id }, (res) => {
+                  if (!res.ok) alert(res.message);
+                })}
+                style={{
+                  background: allReady ? th.launchReadyBg : th.launchNotReadyBg,
+                  border: `1px solid ${allReady ? th.launchReadyBorder : th.launchNotReadyBorder}`,
+                  color: allReady ? th.launchReadyText : th.launchNotReadyText,
+                  borderRadius: 10, padding: '10px 0',
+                  cursor: allReady ? 'pointer' : 'not-allowed',
+                  fontSize: 13, fontWeight: 700,
+                  fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5,
+                  width: '100%',
+                  boxShadow: allReady ? '0 4px 20px rgba(184,148,42,0.25)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                ⚓ Launch Game
+              </button>
+            )}
+          </div>
         </div>
 
         {/* RIGHT — Settings */}
@@ -587,48 +632,6 @@ export function LobbyRoomScreen() {
                 );
               })}
 
-              {/* Seafarers toggle — only shown when the selected map supports it */}
-              {availableMaps.find((m) => m.id === settings.mapTemplateId)?.seafarers && (() => {
-                const seafOn = !!(settings as unknown as Record<string, unknown>)['seafarers'];
-                const discOn = !!(settings as unknown as Record<string, unknown>)['discoveryBonus'];
-                return (
-                  <>
-                    <button
-                      disabled={!isHost}
-                      onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { seafarers: !seafOn, discoveryBonus: !seafOn ? discOn : false } })}
-                      style={{
-                        flex: 1, background: seafOn ? th.cardSelBg : th.settingsBg,
-                        border: `1.5px solid ${seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
-                        borderRadius: 14, padding: '12px 14px',
-                        cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
-                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>Sailing Expansion</div>
-                      <div style={{ fontSize: 10, color: seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>Ships, pirate &amp; sea routes</div>
-                    </button>
-                    {seafOn && (
-                      <button
-                        disabled={!isHost}
-                        onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { discoveryBonus: !discOn } })}
-                        style={{
-                          flex: 1, background: discOn ? th.cardSelBg : th.settingsBg,
-                          border: `1.5px solid ${discOn ? th.cardSelBorder : th.cardUnselBorder}`,
-                          borderRadius: 14, padding: '12px 14px',
-                          cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
-                          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                          transition: 'background 0.15s, border-color 0.15s',
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: discOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>Discovery Bonus</div>
-                        <div style={{ fontSize: 10, color: discOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>+2 VP for first island settlement</div>
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-
               {/* VP to Win — segmented picker */}
               <div style={{
                 flex: 1,
@@ -671,74 +674,69 @@ export function LobbyRoomScreen() {
                 </div>
               </div>
             </div>
+
+            {/* Seafarers expansion box — only shown when selected map supports sailing */}
+            {(() => {
+              const supportsSeafarers = availableMaps.find((m) => m.id === settings.mapTemplateId)?.seafarers;
+              if (!supportsSeafarers) return null;
+              const seafOn = !!(settings as unknown as Record<string, unknown>)['seafarers'];
+              const discOn = !!(settings as unknown as Record<string, unknown>)['discoveryBonus'];
+              return (
+                <div style={{
+                  marginTop: 20,
+                  background: seafOn ? 'rgba(26,90,138,0.12)' : th.settingsBg,
+                  border: `1.5px solid ${seafOn ? 'rgba(70,160,220,0.4)' : th.cardUnselBorder}`,
+                  borderRadius: 14,
+                  padding: '16px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: seafOn ? 'rgba(100,180,240,0.9)' : th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif" }}>
+                    Sailing Expansion
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      disabled={!isHost}
+                      onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { seafarers: !seafOn, discoveryBonus: !seafOn ? discOn : false } })}
+                      style={{
+                        flex: 1, minWidth: 120,
+                        background: seafOn ? th.cardSelBg : th.settingsBg,
+                        border: `1.5px solid ${seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
+                        borderRadius: 10, padding: '10px 14px',
+                        cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
+                        display: 'flex', flexDirection: 'column', gap: 4,
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600 }}>⛵ Enable Sailing</div>
+                      <div style={{ fontSize: 10, color: seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>Ships, pirate &amp; sea routes</div>
+                    </button>
+                    <button
+                      disabled={!isHost || !seafOn}
+                      onClick={() => seafOn && isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { discoveryBonus: !discOn } })}
+                      style={{
+                        flex: 1, minWidth: 120,
+                        background: discOn && seafOn ? th.cardSelBg : th.settingsBg,
+                        border: `1.5px solid ${discOn && seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
+                        borderRadius: 10, padding: '10px 14px',
+                        cursor: isHost && seafOn ? 'pointer' : 'default', textAlign: 'left',
+                        display: 'flex', flexDirection: 'column', gap: 4,
+                        opacity: seafOn ? 1 : 0.45,
+                        transition: 'background 0.15s, border-color 0.15s, opacity 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: discOn && seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600 }}>🏝 Discovery Bonus</div>
+                      <div style={{ fontSize: 10, color: discOn && seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>+2 VP for first island settlement</div>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
 
-      {/* ── FOOTER ── */}
-      <div style={{
-        borderTop: th.footerBorder,
-        padding: '18px 44px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 12,
-        position: 'relative',
-        zIndex: 1,
-        flexShrink: 0,
-      }}>
-        <div style={{ flex: 1, fontSize: 12, color: th.footerStatus, fontStyle: 'italic' }}>
-          {allReady
-            ? '✓ All players ready'
-            : `${occupied.filter((s) => s.ready).length}/${occupied.length} ready`}
-        </div>
-
-        {mySlot && (
-          <button
-            onClick={() => socket.emit('lobby:ready', { lobbyId: id, ready: !mySlot.ready })}
-            style={{
-              background: mySlot.ready ? th.readyOnBg : th.readyOffBg,
-              border: `1px solid ${mySlot.ready ? th.readyOnBorder : th.readyOffBorder}`,
-              color: mySlot.ready ? th.readyOnText : th.readyOffText,
-              borderRadius: 10,
-              padding: '10px 24px',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: "'Cinzel', Georgia, serif",
-              letterSpacing: 0.5,
-              transition: 'all 0.15s',
-            }}
-          >
-            {mySlot.ready ? 'Not Ready' : '✓ Ready'}
-          </button>
-        )}
-
-        {isHost && (
-          <button
-            disabled={!allReady}
-            onClick={() => socket.emit('lobby:start', { lobbyId: id }, (res) => {
-              if (!res.ok) alert(res.message);
-            })}
-            style={{
-              background: allReady ? th.launchReadyBg : th.launchNotReadyBg,
-              border: `1px solid ${allReady ? th.launchReadyBorder : th.launchNotReadyBorder}`,
-              color: allReady ? th.launchReadyText : th.launchNotReadyText,
-              borderRadius: 10,
-              padding: '10px 28px',
-              cursor: allReady ? 'pointer' : 'not-allowed',
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: "'Cinzel', Georgia, serif",
-              letterSpacing: 0.5,
-              boxShadow: allReady ? '0 4px 20px rgba(184,148,42,0.25)' : 'none',
-              transition: 'all 0.15s',
-            }}
-          >
-            ⚓ Launch Game
-          </button>
-        )}
-      </div>
     </div>
   );
 }
