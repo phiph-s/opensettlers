@@ -164,6 +164,7 @@ export class GameEngine {
       pirateMode: false,
       discoveryBonus: settings.discoveryBonus,
       claimedIslands: {},
+      discoverySettlements: {},
       shipMovedThisTurn: null,
     };
   }
@@ -819,6 +820,7 @@ export class GameEngine {
 
       // First settlement on this island — grant 2 VP (tracked in claimed islands, VP computed separately)
       this.state.claimedIslands[island.islandId] = playerId;
+      this.state.discoverySettlements[island.islandId] = vk;
     }
   }
 

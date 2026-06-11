@@ -71,6 +71,8 @@ export interface GameState {
   discoveryBonus: boolean;
   /** Seafarers: maps island-id → first player id who settled there */
   claimedIslands: Record<string, string>;
+  /** Seafarers: maps island-id → vertex key of the first settlement that claimed it */
+  discoverySettlements: Record<string, string>;
   /** Seafarers: edge key of the ship moved this turn (only one ship can move per turn) */
   shipMovedThisTurn: string | null;
 }

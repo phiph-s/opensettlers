@@ -327,26 +327,58 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
       ))}
 
       {/* Vertices (settlements/cities) */}
-      {Object.entries(board.vertices).map(([vk, vertex]) => {
-        const pos = layout.vertexPositions[vk];
-        if (!pos) return null;
-        const isValidSettlement = showSettlementVertices && validMoves.settlementVertices.has(vk);
-        const isValidCity = showCityVertices && validMoves.cityVertices.has(vk);
-        const isValid = isValidSettlement || isValidCity;
-        return (
-          <VertexSpot
-            key={vk}
-            vertex={vertex}
-            position={pos}
-            isValid={isValid}
-            size={layout.size}
-            uiScale={uiScale}
-            myPlayerId={myPlayerId}
-            playerColorMap={playerColorMap}
-            onClick={isValid ? () => onVertexClick(vk) : undefined}
-          />
-        );
-      })}
+      {(() => {
+        const discoveryVerts = gameState.discoverySettlements
+          ? new Set(Object.values(gameState.discoverySettlements))
+          : null;
+        return Object.entries(board.vertices).map(([vk, vertex]) => {
+          const pos = layout.vertexPositions[vk];
+          if (!pos) return null;
+          const isValidSettlement = showSettlementVertices && validMoves.settlementVertices.has(vk);
+          const isValidCity = showCityVertices && validMoves.cityVertices.has(vk);
+          const isValid = isValidSettlement || isValidCity;
+          const isDiscovery = discoveryVerts?.has(vk) ?? false;
+          const badge = isDiscovery ? (
+            <g key={`disc-${vk}`} style={{ pointerEvents: 'none' }}>
+              <rect
+                x={pos.x + layout.size * 0.18 * uiScale}
+                y={pos.y - layout.size * 0.52 * uiScale}
+                width={layout.size * 0.42 * uiScale}
+                height={layout.size * 0.26 * uiScale}
+                rx={layout.size * 0.07 * uiScale}
+                fill="#d4a017"
+                stroke="#fff"
+                strokeWidth={layout.size * 0.025 * uiScale}
+              />
+              <text
+                x={pos.x + layout.size * 0.39 * uiScale}
+                y={pos.y - layout.size * 0.33 * uiScale}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#fff"
+                fontSize={layout.size * 0.18 * uiScale}
+                fontWeight="bold"
+                fontFamily="'Cinzel', Georgia, serif"
+              >+2</text>
+            </g>
+          ) : null;
+          return (
+            <React.Fragment key={vk}>
+              <VertexSpot
+                vertex={vertex}
+                position={pos}
+                isValid={isValid}
+                size={layout.size}
+                uiScale={uiScale}
+                myPlayerId={myPlayerId}
+                playerColorMap={playerColorMap}
+                onClick={isValid ? () => onVertexClick(vk) : undefined}
+              />
+              {badge}
+            </React.Fragment>
+          );
+        });
+      })()}
     </svg>
   );
 }

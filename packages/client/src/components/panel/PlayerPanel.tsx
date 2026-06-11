@@ -16,11 +16,14 @@ interface Props {
   board: GameBoard;
   longestRoadOwner: string | null;
   largestArmyOwner: string | null;
+  claimedIslands?: Record<string, string>;
+  discoveryBonus?: boolean;
 }
 
 function computeVisibleVP(
   player: Player, board: GameBoard,
-  longestRoadOwner: string | null, largestArmyOwner: string | null
+  longestRoadOwner: string | null, largestArmyOwner: string | null,
+  claimedIslands?: Record<string, string>, discoveryBonus?: boolean
 ): number {
   let vp = 0;
   for (const vertex of Object.values(board.vertices)) {
@@ -30,6 +33,11 @@ function computeVisibleVP(
   }
   if (longestRoadOwner === player.id) vp += 2;
   if (largestArmyOwner === player.id) vp += 2;
+  if (discoveryBonus && claimedIslands) {
+    for (const ownerId of Object.values(claimedIslands)) {
+      if (ownerId === player.id) vp += 2;
+    }
+  }
   return vp;
 }
 
@@ -115,9 +123,9 @@ function StatBadge({ icon, count, golden, title }: { icon: React.ReactNode; coun
   );
 }
 
-export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, largestArmyOwner }: Props) {
+export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, largestArmyOwner, claimedIslands, discoveryBonus }: Props) {
   const color = COLOR_MAP[player.color] ?? '#aaa';
-  const visibleVP = computeVisibleVP(player, board, longestRoadOwner, largestArmyOwner);
+  const visibleVP = computeVisibleVP(player, board, longestRoadOwner, largestArmyOwner, claimedIslands, discoveryBonus);
   const totalVP = player.victoryPoints;
   const hasHiddenVP = isMe && totalVP > visibleVP;
 

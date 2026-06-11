@@ -82,6 +82,8 @@ export function GameScreen() {
           board={gameState.board}
           longestRoadOwner={gameState.longestRoadOwner}
           largestArmyOwner={gameState.largestArmyOwner}
+          claimedIslands={gameState.claimedIslands}
+          discoveryBonus={gameState.discoveryBonus}
         />
       ))}
     </>

@@ -2,9 +2,51 @@ import type { EdgeKey, GameBoard, HexKey, VertexKey } from '../types/board.js';
 import type { GameState } from '../types/game.js';
 import { hexVertexKeys } from '../coords/vertexKey.js';
 
+/** Computes a map of hexKey → island size (size of connected non-sea component) */
+function computeIslandSizes(board: GameBoard): Map<HexKey, number> {
+  const sizeMap = new Map<HexKey, number>();
+  const visited = new Set<HexKey>();
+
+  // Build land-hex adjacency from edges
+  const hexAdj = new Map<HexKey, HexKey[]>();
+  for (const edge of Object.values(board.edges)) {
+    const [h1, h2] = edge.adjacentHexKeys;
+    if (!h1 || !h2) continue;
+    if (!hexAdj.has(h1)) hexAdj.set(h1, []);
+    if (!hexAdj.has(h2)) hexAdj.set(h2, []);
+    hexAdj.get(h1)!.push(h2);
+    hexAdj.get(h2)!.push(h1);
+  }
+
+  for (const hk of Object.keys(board.hexes)) {
+    if (visited.has(hk)) continue;
+    const hex = board.hexes[hk];
+    if (!hex || hex.terrain === 'sea') { visited.add(hk); continue; }
+
+    const component: HexKey[] = [];
+    const queue: HexKey[] = [hk];
+    while (queue.length) {
+      const curr = queue.pop()!;
+      if (visited.has(curr)) continue;
+      visited.add(curr);
+      const h = board.hexes[curr];
+      if (!h || h.terrain === 'sea') continue;
+      component.push(curr);
+      for (const nb of (hexAdj.get(curr) ?? [])) {
+        if (!visited.has(nb)) queue.push(nb);
+      }
+    }
+    for (const k of component) sizeMap.set(k, component.length);
+  }
+  return sizeMap;
+}
+
 /** Returns all vertex keys valid for setup settlement placement */
-export function validSetupVertices(board: GameBoard, cloudOriginKeys?: string[]): VertexKey[] {
+export function validSetupVertices(board: GameBoard, cloudOriginKeys?: string[], blockDiscoveryIslands?: boolean): VertexKey[] {
   const cloudSet = cloudOriginKeys ? new Set(cloudOriginKeys) : null;
+  // When discovery bonus is active, block setup placement on small islands (≤7 tiles)
+  const islandSizes = blockDiscoveryIslands ? computeIslandSizes(board) : null;
+
   return Object.values(board.vertices)
     .filter((v) => {
       // Must touch at least one non-sea hex
@@ -18,6 +60,14 @@ export function validSetupVertices(board: GameBoard, cloudOriginKeys?: string[])
         (hk) => board.hexes[hk]?.terrain === 'clouds' || cloudSet?.has(hk)
       );
       if (touchesCloudZone) return false;
+      // When discovery bonus enabled: cannot start on a small island (≤7 tiles)
+      if (islandSizes) {
+        const onSmallIsland = v.adjacentHexKeys.some((hk) => {
+          const sz = islandSizes.get(hk);
+          return sz !== undefined && sz <= 7;
+        });
+        if (onSmallIsland) return false;
+      }
       // No existing building here
       if (v.building !== null) return false;
       // Distance rule: all adjacent vertices must be empty
