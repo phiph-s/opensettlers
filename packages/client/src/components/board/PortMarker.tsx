@@ -11,6 +11,7 @@ interface Props {
   position: Point;
   portType: PortType;
   size: number;
+  uiScale?: number;
 }
 
 const PORT_DISPLAY: Record<string, { img: string | null; label: string; bg: string }> = {
@@ -22,7 +23,7 @@ const PORT_DISPLAY: Record<string, { img: string | null; label: string; bg: stri
   generic_3_1: { img: null,     label: '3:1', bg: '#457b9d' },
 };
 
-export function PortMarker({ position, portType, size }: Props) {
+export function PortMarker({ position, portType, size, uiScale = 1 }: Props) {
   const display = PORT_DISPLAY[portType];
   if (!display) return null;
 
@@ -34,7 +35,7 @@ export function PortMarker({ position, portType, size }: Props) {
   const badgeY = y + size * 0.055;
 
   return (
-    <g>
+    <g transform={uiScale !== 1 ? `translate(${x} ${y}) scale(${uiScale}) translate(${-x} ${-y})` : undefined}>
       {/* ── Ship silhouette (side view, all coords in "ship units" scaled by s) ── */}
       <g transform={`translate(${x}, ${y}) scale(${s})`}>
 

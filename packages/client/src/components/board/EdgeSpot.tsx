@@ -10,11 +10,12 @@ interface Props {
   v2: Point | undefined;
   isValid: boolean;
   size: number;
+  uiScale?: number;
   playerColorMap: Record<string, string>;
   onClick?: () => void;
 }
 
-export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, playerColorMap, onClick }: Props) {
+export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, uiScale = 1, playerColorMap, onClick }: Props) {
   if (edge.road) {
     const color = playerColorMap[edge.road.owner] ?? '#aaa';
     if (v1 && v2) {
@@ -25,7 +26,7 @@ export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, playerColorMap
             x1={v1.x} y1={v1.y}
             x2={v2.x} y2={v2.y}
             stroke="rgba(255,255,255,0.72)"
-            strokeWidth={size * 0.145}
+            strokeWidth={size * 0.145 * uiScale}
             strokeLinecap="round"
           />
           {/* Player-coloured road on top */}
@@ -33,7 +34,7 @@ export function EdgeSpot({ edge, midpoint, v1, v2, isValid, size, playerColorMap
             x1={v1.x} y1={v1.y}
             x2={v2.x} y2={v2.y}
             stroke={color}
-            strokeWidth={size * 0.095}
+            strokeWidth={size * 0.095 * uiScale}
             strokeLinecap="round"
           />
         </g>

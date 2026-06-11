@@ -74,6 +74,9 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
 
   const activeId = gameState.players[gameState.activePlayerIndex]?.id;
 
+  // Compensate zoom so buildings/roads/ports never shrink below their natural size
+  const uiScale = panZoom ? Math.max(1, 1 / panZoom.transform.scale) : 1;
+
   // Group port vertices into pairs by proximity, place marker at center of adjacent sea hex
   const portMarkers = useMemo(() => {
     const portVerts: Array<{ x: number; y: number; portType: PortType; vk: string }> = [];
@@ -178,13 +181,14 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         const rolledSum = gameState.diceRoll ? gameState.diceRoll[0] + gameState.diceRoll[1] : null;
         return (
           <g key={hk}>
-            <HexTile hex={hex} center={center} size={layout.size} rolledNumber={rolledSum} />
+            <HexTile hex={hex} center={center} size={layout.size} rolledNumber={rolledSum} uiScale={uiScale} />
             {validMoves.robberHexes.has(hk) && (
               <RobberSpot
                 hex={hex}
                 center={center}
                 size={layout.size}
                 isValidTarget={true}
+                uiScale={uiScale}
                 onClick={() => onHexClick(hk)}
               />
             )}
@@ -208,6 +212,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
             v2={v2}
             isValid={showRoadEdges && validMoves.roadEdges.has(ek)}
             size={layout.size}
+            uiScale={uiScale}
             playerColorMap={playerColorMap}
             onClick={() => onEdgeClick(ek)}
           />
@@ -255,7 +260,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
               </g>
             );
           })}
-          <PortMarker position={pos} portType={portType} size={layout.size} />
+          <PortMarker position={pos} portType={portType} size={layout.size} uiScale={uiScale} />
         </g>
       ))}
 
@@ -273,6 +278,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
             position={pos}
             isValid={isValid}
             size={layout.size}
+            uiScale={uiScale}
             myPlayerId={myPlayerId}
             playerColorMap={playerColorMap}
             onClick={isValid ? () => onVertexClick(vk) : undefined}

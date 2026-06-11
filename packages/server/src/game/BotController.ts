@@ -8,7 +8,7 @@ import {
   BUILDING_COSTS,
   hexVertexKeys,
 } from '@opensettlers/shared';
-import type { CubeCoord, GameState, Resource, Player } from '@opensettlers/shared';
+import type { CubeCoord, GameState, Resource, Player, TradeOffer } from '@opensettlers/shared';
 import type { GameEngine } from './GameEngine.js';
 
 const RESOURCES: Resource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
@@ -119,6 +119,116 @@ function tryMaritimeTrade(
 
   const err = engine.handleMaritimeTrade(playerId, { [giveRes]: 4 }, { [targetRes]: 1 });
   return err === null;
+}
+
+/** Play Year of Plenty if available and we're missing 1–2 resources toward goal. */
+function tryPlayYearOfPlenty(state: GameState, me: Player, playerId: string, engine: GameEngine): boolean {
+  if (state.devCardPlayedThisTurn) return false;
+  const card = me.devCards.find((c) => c.type === 'year_of_plenty' && c.turnDrawn < state.turnNumber);
+  if (!card) return false;
+
+  const goal = primaryGoalCost(state, me, playerId);
+  if (!goal) return false;
+
+  const missing = (Object.entries(goal) as [Resource, number][])
+    .flatMap(([r, n]) => Array.from({ length: Math.max(0, n - (me.hand[r] ?? 0)) }, () => r as Resource));
+
+  if (missing.length === 0 || missing.length > 2) return false;
+
+  const r1 = missing[0]!;
+  const r2 = missing[1] ?? missing[0]!;
+  const err = engine.handlePlayYearOfPlenty(playerId, r1, r2);
+  return err === null;
+}
+
+/** Play Monopoly if available and opponents collectively hold resources we need. */
+function tryPlayMonopoly(state: GameState, me: Player, playerId: string, engine: GameEngine): boolean {
+  if (state.devCardPlayedThisTurn) return false;
+  const card = me.devCards.find((c) => c.type === 'monopoly' && c.turnDrawn < state.turnNumber);
+  if (!card) return false;
+
+  const goal = primaryGoalCost(state, me, playerId);
+  if (!goal) return false;
+
+  // Pick the resource we're missing that opponents hold the most of
+  const missing = (Object.entries(goal) as [Resource, number][])
+    .filter(([r, n]) => (me.hand[r] ?? 0) < n)
+    .map(([r]) => r as Resource);
+  if (missing.length === 0) return false;
+
+  let bestRes: Resource = missing[0]!;
+  let bestTotal = 0;
+  for (const r of missing) {
+    const total = state.players
+      .filter((p) => p.id !== playerId)
+      .reduce((sum, p) => sum + (p.hand[r] ?? 0), 0);
+    if (total > bestTotal) { bestTotal = total; bestRes = r; }
+  }
+
+  if (bestTotal === 0) return false;
+  const err = engine.handlePlayMonopoly(playerId, bestRes);
+  return err === null;
+}
+
+/** Returns the bot's primary build goal cost (settlement > city > dev card). */
+function primaryGoalCost(state: GameState, me: Player, playerId: string): Partial<Record<Resource, number>> | null {
+  if (me.settlementsLeft > 0 && validSettlementVertices(state.board, playerId).length > 0) {
+    return BUILDING_COSTS.settlement;
+  }
+  if (me.citiesLeft > 0 && validCityVertices(state.board, playerId).length > 0) {
+    return BUILDING_COSTS.city;
+  }
+  if (state.devCardDeckSize > 0) return BUILDING_COSTS.dev_card;
+  return null;
+}
+
+/** Total deficit of `hand` against `cost` (sum of missing amounts). */
+function goalDeficit(cost: Partial<Record<Resource, number>>, hand: Partial<Record<Resource, number>>): number {
+  return (Object.entries(cost) as [Resource, number][])
+    .reduce((sum, [r, n]) => sum + Math.max(0, n - (hand[r] ?? 0)), 0);
+}
+
+/** Should this bot accept an incoming trade offer? Accept if it reduces goal deficit without going below 0 on any given resource. */
+function shouldAcceptTrade(state: GameState, me: Player, offer: TradeOffer, playerId: string): boolean {
+  for (const [r, n] of Object.entries(offer.requesting) as [Resource, number][]) {
+    if ((me.hand[r] ?? 0) < n) return false;
+  }
+  const goal = primaryGoalCost(state, me, playerId);
+  if (!goal) return false;
+
+  const postHand: Partial<Record<Resource, number>> = { ...me.hand };
+  for (const [r, n] of Object.entries(offer.requesting) as [Resource, number][]) {
+    postHand[r as Resource] = (postHand[r as Resource] ?? 0) - n;
+  }
+  for (const [r, n] of Object.entries(offer.offering) as [Resource, number][]) {
+    postHand[r as Resource] = (postHand[r as Resource] ?? 0) + n;
+  }
+
+  return goalDeficit(goal, postHand) < goalDeficit(goal, me.hand);
+}
+
+/** Propose a 1:1 player trade when exactly 1 resource short of primary goal and has surplus of another. */
+function tryProposeTrade(state: GameState, me: Player, playerId: string, engine: GameEngine): boolean {
+  const goal = primaryGoalCost(state, me, playerId);
+  if (!goal) return false;
+
+  const stillNeed = (Object.entries(goal) as [Resource, number][])
+    .filter(([r, n]) => (me.hand[r] ?? 0) < n)
+    .map(([r, n]) => [r, n - (me.hand[r] ?? 0)] as [Resource, number]);
+
+  if (stillNeed.length !== 1 || stillNeed[0]![1] !== 1) return false;
+  const [wantRes] = stillNeed[0]!;
+
+  for (const r of RESOURCES) {
+    if (r === wantRes) continue;
+    const have = me.hand[r] ?? 0;
+    const goalNeed = (goal as Partial<Record<Resource, number>>)[r] ?? 0;
+    if (have > goalNeed + 1) {
+      const err = engine.handleProposeTrade(playerId, { [r]: 1 }, { [wantRes]: 1 });
+      if (err === null) return true;
+    }
+  }
+  return false;
 }
 
 export class BotController {
@@ -349,32 +459,75 @@ export class BotController {
           return;
         }
 
-        // 3. Trade toward top-priority build goal
+        // 3. Play Year of Plenty if it unlocks an immediate build goal
+        if (tryPlayYearOfPlenty(state, me, this.playerId, this.engine)) return;
+
+        // 4. Play Monopoly if opponents hold resources we need
+        if (tryPlayMonopoly(state, me, this.playerId, this.engine)) return;
+
+        // 5. Maritime trade toward top-priority build goal
         if (canSettlement) {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.settlement, this.engine, this.playerId)) return;
         } else if (canCity) {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.city, this.engine, this.playerId)) return;
         }
 
-        // 4. Buy dev card if affordable — good resource sink, deck permitting
+        // 6. Buy dev card if affordable — good resource sink, deck permitting
         if (canAfford(me.hand, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0) {
           const err = this.engine.handleBuyDevCard(this.playerId);
           if (err === null) return;
         }
 
-        // 5. Trade surplus toward a dev card when hand is large (prevents hoarding)
+        // 7. Trade surplus toward a dev card when hand is large (prevents hoarding)
         if (handTotal(me.hand) > 7 && state.devCardDeckSize > 0) {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.dev_card, this.engine, this.playerId)) return;
         }
 
-        // 6. Build road if affordable and useful (more roads = more settlement spots)
-        if (canAfford(me.hand, BUILDING_COSTS.road) && canRoad) {
+        // 8. Propose a 1:1 player trade when exactly 1 resource short of primary goal
+        if (state.players.length > 1) {
+          if (tryProposeTrade(state, me, this.playerId, this.engine)) return;
+        }
+
+        // 9. Play Road Building card for free expansion
+        if (!state.devCardPlayedThisTurn && canRoad) {
+          const rbCard = me.devCards.find((c) => c.type === 'road_building' && c.turnDrawn < state.turnNumber);
+          if (rbCard) {
+            const err = this.engine.handlePlayRoadBuilding(this.playerId);
+            if (err === null) return;
+          }
+        }
+
+        // 10. Build road only when there are no valid settlement spots (don't burn wood+brick needed for settlement)
+        if (canAfford(me.hand, BUILDING_COSTS.road) && canRoad && !canSettlement) {
           const edges = validRoadEdges(board, this.playerId);
           this.engine.handleBuildRoad(this.playerId, edges[0]!);
           return;
         }
 
         this.engine.handleEndTurn(this.playerId);
+        break;
+      }
+
+      case 'TRADE_OFFER_PENDING': {
+        const offer = state.activeTradeOffer;
+        if (!offer) return;
+
+        if (isActive) {
+          // We proposed the trade — confirm as soon as someone accepts
+          if (offer.acceptedBy.length > 0) {
+            this.engine.handleConfirmTrade(this.playerId, offer.id, offer.acceptedBy[0]!);
+          }
+          // Otherwise wait; timer will auto-cancel
+          return;
+        }
+
+        // Non-active player: respond if we haven't already
+        if (offer.rejectedBy.includes(this.playerId) || offer.acceptedBy.includes(this.playerId)) return;
+        if (shouldAcceptTrade(state, me, offer, this.playerId)) {
+          this.engine.handleAcceptTrade(this.playerId, offer.id);
+        } else {
+          this.engine.handleRejectTrade(this.playerId, offer.id);
+        }
         break;
       }
 

@@ -8,6 +8,7 @@ interface Props {
   position: Point;
   isValid: boolean;
   size: number;
+  uiScale?: number;
   myPlayerId: string | null;
   playerColorMap: Record<string, string>;
   onClick?: () => void;
@@ -118,10 +119,11 @@ function City({ cx, cy, color, s }: { cx: number; cy: number; color: string; s: 
   );
 }
 
-export function VertexSpot({ vertex, position, isValid, size, myPlayerId, playerColorMap, onClick }: Props) {
+export function VertexSpot({ vertex, position, isValid, size, uiScale = 1, myPlayerId, playerColorMap, onClick }: Props) {
   const s = size * 0.155;
   const { x, y } = position;
   const building = vertex.building;
+  const tf = uiScale !== 1 ? `translate(${x} ${y}) scale(${uiScale}) translate(${-x} ${-y})` : undefined;
 
   if (building) {
     const color = playerColorMap[building.owner] ?? '#aaa';
@@ -129,6 +131,7 @@ export function VertexSpot({ vertex, position, isValid, size, myPlayerId, player
       <g
         key={`${building.type}-${building.owner}`}
         className="piece-drop-in"
+        transform={tf}
         onClick={isValid ? onClick : undefined}
         style={{ cursor: isValid ? 'pointer' : undefined, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.52))' }}
       >

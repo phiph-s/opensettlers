@@ -32,9 +32,10 @@ interface Props {
   center: Point;
   size: number;
   rolledNumber?: number | null;
+  uiScale?: number;
 }
 
-export function HexTile({ hex, center, size, rolledNumber }: Props) {
+export function HexTile({ hex, center, size, rolledNumber, uiScale = 1 }: Props) {
   const points = hexPolygonPoints(center, size * 0.92);
   const innerPoints = hexPolygonPoints(center, size * 0.88);
   const color = TERRAIN_COLORS[hex.terrain];
@@ -78,7 +79,11 @@ export function HexTile({ hex, center, size, rolledNumber }: Props) {
       </g>
 
       {/* Robber piece — rendered outside tile filter so it gets its own shadow */}
-      {hex.hasRobber && <RobberPiece cx={x} cy={y} r={size * 0.26} />}
+      {hex.hasRobber && (
+        <g transform={uiScale !== 1 ? `translate(${x} ${y}) scale(${uiScale}) translate(${-x} ${-y})` : undefined}>
+          <RobberPiece cx={x} cy={y} r={size * 0.26} />
+        </g>
+      )}
     </>
   );
 }
