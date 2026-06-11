@@ -219,6 +219,10 @@ function tryProposeTrade(state: GameState, me: Player, playerId: string, engine:
   if (stillNeed.length !== 1 || stillNeed[0]![1] !== 1) return false;
   const [wantRes] = stillNeed[0]!;
 
+  // Don't request a resource nobody else has
+  const anyoneHas = state.players.some((p) => p.id !== playerId && (p.hand[wantRes] ?? 0) > 0);
+  if (!anyoneHas) return false;
+
   for (const r of RESOURCES) {
     if (r === wantRes) continue;
     const have = me.hand[r] ?? 0;
@@ -340,7 +344,17 @@ export class BotController {
         const knightCard = me.devCards.find(
           (c) => c.type === 'knight' && c.turnDrawn < state.turnNumber
         );
-        if (state.phase === 'PRE_ROLL' && knightCard && robberOnOwnHex(state, this.playerId)) {
+        const knightsOwned = me.devCards.filter((c) => c.type === 'knight').length;
+        const largestArmySize = state.players.reduce((max, p) => Math.max(max, p.knightsPlayed), 0);
+        const shouldPlayKnight = knightCard && state.phase === 'PRE_ROLL' && (
+          robberOnOwnHex(state, this.playerId) ||
+          // Play proactively only when holding more than one knight (don't burn the only one)
+          (knightsOwned > 1 && (
+            (me.knightsPlayed < 3) ||
+            (me.knightsPlayed <= largestArmySize && me.knightsPlayed + 1 >= 3)
+          ))
+        );
+        if (shouldPlayKnight) {
           this.engine.handlePlayKnight(this.playerId);
           return;
         }
@@ -437,89 +451,97 @@ export class BotController {
 
       case 'BUILD_PHASE': {
         if (!isActive) return;
-        const board = state.board;
 
-        // Determine build goal priority
-        const canSettlement = me.settlementsLeft > 0 && validSettlementVertices(board, this.playerId).length > 0;
-        const canCity = me.citiesLeft > 0 && validCityVertices(board, this.playerId).length > 0;
-        const canRoad = me.roadsLeft > 0 && validRoadEdges(board, this.playerId).length > 0;
+        // Loop: take as many actions as possible per act() call before ending turn.
+        // Re-read state after each action since resources/hand change in-place.
+        while (true) {
+          const currentState = this.engine.getState();
+          if (currentState.phase !== 'BUILD_PHASE') return; // phase changed (e.g. trade proposed)
+          const currentMe = currentState.players.find((p) => p.id === this.playerId);
+          if (!currentMe) return;
+          const currentBoard = currentState.board;
 
-        // 1. Build settlement if affordable
-        if (canAfford(me.hand, BUILDING_COSTS.settlement) && canSettlement) {
-          const verts = validSettlementVertices(board, this.playerId);
-          let best = verts[0]!;
-          let bestScore = -1;
-          for (const vk of verts) {
-            const s = scoreVertex(state, vk);
-            if (s > bestScore) { bestScore = s; best = vk; }
+          const canSettlement = currentMe.settlementsLeft > 0 && validSettlementVertices(currentBoard, this.playerId).length > 0;
+          const canCity = currentMe.citiesLeft > 0 && validCityVertices(currentBoard, this.playerId).length > 0;
+          const canRoad = currentMe.roadsLeft > 0 && validRoadEdges(currentBoard, this.playerId).length > 0;
+
+          // 1. Build settlement
+          if (canAfford(currentMe.hand, BUILDING_COSTS.settlement) && canSettlement) {
+            const verts = validSettlementVertices(currentBoard, this.playerId);
+            let best = verts[0]!;
+            let bestScore = -1;
+            for (const vk of verts) {
+              const s = scoreVertex(currentState, vk);
+              if (s > bestScore) { bestScore = s; best = vk; }
+            }
+            this.engine.handleBuildSettlement(this.playerId, best);
+            continue;
           }
-          this.engine.handleBuildSettlement(this.playerId, best);
-          return;
-        }
 
-        // 2. Build city if affordable
-        if (canAfford(me.hand, BUILDING_COSTS.city) && canCity) {
-          const verts = validCityVertices(board, this.playerId);
-          // Upgrade the settlement on the highest-pip hex
-          let best = verts[0]!;
-          let bestScore = -1;
-          for (const vk of verts) {
-            const s = scoreVertex(state, vk);
-            if (s > bestScore) { bestScore = s; best = vk; }
+          // 2. Build city
+          if (canAfford(currentMe.hand, BUILDING_COSTS.city) && canCity) {
+            const verts = validCityVertices(currentBoard, this.playerId);
+            let best = verts[0]!;
+            let bestScore = -1;
+            for (const vk of verts) {
+              const s = scoreVertex(currentState, vk);
+              if (s > bestScore) { bestScore = s; best = vk; }
+            }
+            this.engine.handleBuildCity(this.playerId, best);
+            continue;
           }
-          this.engine.handleBuildCity(this.playerId, best);
-          return;
-        }
 
-        // 3. Play Year of Plenty if it unlocks an immediate build goal
-        if (tryPlayYearOfPlenty(state, me, this.playerId, this.engine)) return;
+          // 3. Play Year of Plenty if it unlocks an immediate build goal
+          if (tryPlayYearOfPlenty(currentState, currentMe, this.playerId, this.engine)) continue;
 
-        // 4. Play Monopoly if opponents hold resources we need
-        if (tryPlayMonopoly(state, me, this.playerId, this.engine)) return;
+          // 4. Play Monopoly if opponents hold resources we need
+          if (tryPlayMonopoly(currentState, currentMe, this.playerId, this.engine)) continue;
 
-        // 5. Maritime trade toward top-priority build goal
-        if (canSettlement) {
-          if (tryMaritimeTrade(state, me, BUILDING_COSTS.settlement, this.engine, this.playerId)) return;
-        } else if (canCity) {
-          if (tryMaritimeTrade(state, me, BUILDING_COSTS.city, this.engine, this.playerId)) return;
-        }
-
-        // 6. Buy dev card if affordable — good resource sink, deck permitting
-        if (canAfford(me.hand, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0) {
-          const err = this.engine.handleBuyDevCard(this.playerId);
-          if (err === null) return;
-        }
-
-        // 7. Trade surplus toward a dev card when hand is large (prevents hoarding)
-        if (handTotal(me.hand) > 7 && state.devCardDeckSize > 0) {
-          if (tryMaritimeTrade(state, me, BUILDING_COSTS.dev_card, this.engine, this.playerId)) return;
-        }
-
-        // 8. Propose a 1:1 player trade when exactly 1 resource short of primary goal (at most once per turn)
-        if (!this.tradeProposedThisTurn && state.players.length > 1) {
-          if (tryProposeTrade(state, me, this.playerId, this.engine)) {
-            this.tradeProposedThisTurn = true;
-            return;
+          // 5. Maritime trade toward top-priority build goal
+          if (canSettlement) {
+            if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.settlement, this.engine, this.playerId)) continue;
+          } else if (canCity) {
+            if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.city, this.engine, this.playerId)) continue;
           }
-        }
 
-        // 9. Play Road Building card for free expansion
-        if (!state.devCardPlayedThisTurn && canRoad) {
-          const rbCard = me.devCards.find((c) => c.type === 'road_building' && c.turnDrawn < state.turnNumber);
-          if (rbCard) {
-            const err = this.engine.handlePlayRoadBuilding(this.playerId);
-            if (err === null) return;
+          // 6. Buy dev card — cap at 3 unplayed non-VP cards
+          const unplayedActionCards = currentMe.devCards.filter(
+            (c) => c.type !== 'victory_point' && c.turnDrawn < currentState.turnNumber
+          ).length;
+          if (canAfford(currentMe.hand, BUILDING_COSTS.dev_card) && currentState.devCardDeckSize > 0 && unplayedActionCards < 3) {
+            if (this.engine.handleBuyDevCard(this.playerId) === null) continue;
           }
-        }
 
-        // 10. Build road only when there are no valid settlement spots (don't burn wood+brick needed for settlement)
-        if (canAfford(me.hand, BUILDING_COSTS.road) && canRoad && !canSettlement) {
-          const edges = validRoadEdges(board, this.playerId);
-          this.engine.handleBuildRoad(this.playerId, edges[0]!);
-          return;
-        }
+          // 7. Maritime trade to dump surplus when hand is large
+          if (handTotal(currentMe.hand) > 7 && currentState.devCardDeckSize > 0) {
+            if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.dev_card, this.engine, this.playerId)) continue;
+          }
 
-        this.engine.handleEndTurn(this.playerId);
+          // 8. Propose a 1:1 player trade (at most once per turn) — exits loop since phase changes
+          if (!this.tradeProposedThisTurn && currentState.players.length > 1) {
+            if (tryProposeTrade(currentState, currentMe, this.playerId, this.engine)) {
+              this.tradeProposedThisTurn = true;
+              return; // phase is now TRADE_OFFER_PENDING
+            }
+          }
+
+          // 9. Play Road Building card
+          if (!currentState.devCardPlayedThisTurn && canRoad) {
+            const rbCard = currentMe.devCards.find((c) => c.type === 'road_building' && c.turnDrawn < currentState.turnNumber);
+            if (rbCard && this.engine.handlePlayRoadBuilding(this.playerId) === null) return; // phase changes to DEV_ROAD_BUILDING
+          }
+
+          // 10. Build road when no settlement spots available
+          if (canAfford(currentMe.hand, BUILDING_COSTS.road) && canRoad && !canSettlement) {
+            const edges = validRoadEdges(currentBoard, this.playerId);
+            this.engine.handleBuildRoad(this.playerId, edges[0]!);
+            continue;
+          }
+
+          // Nothing left to do
+          this.engine.handleEndTurn(this.playerId);
+          break;
+        }
         break;
       }
 

@@ -226,9 +226,9 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
           <g key={`sea-${hk}`} onClick={isRobberTarget ? () => onHexClick(hk) : undefined} style={isRobberTarget ? { cursor: 'pointer' } : undefined}>
             <polygon
               points={hexPolygonPoints(center, layout.size * 0.92)}
-              fill={isRobberTarget ? 'rgba(80,160,220,0.18)' : 'rgba(26,90,138,0.22)'}
-              stroke={isRobberTarget ? 'rgba(80,160,220,0.55)' : 'rgba(26,90,138,0.35)'}
-              strokeWidth={isRobberTarget ? 2 : 1}
+              fill={isRobberTarget ? 'rgba(80,160,220,0.18)' : isPirate ? 'rgba(180,30,30,0.10)' : 'rgba(26,90,138,0.22)'}
+              stroke={isRobberTarget ? 'rgba(80,160,220,0.55)' : isPirate ? 'rgba(210,50,50,0.70)' : 'rgba(26,90,138,0.35)'}
+              strokeWidth={isRobberTarget ? 2 : isPirate ? 2 : 1}
               strokeDasharray={isRobberTarget ? '6 3' : undefined}
             />
             {isPirate && <PiratePiece cx={center.x} cy={center.y} r={layout.size * 0.26} uiScale={uiScale} />}
