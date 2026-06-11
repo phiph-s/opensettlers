@@ -564,7 +564,7 @@ export function LobbyRoomScreen() {
             {/* Top row: Bank slider + VP picker side by side */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
               {/* Bank Resources */}
-              <div style={{ flex: '0 0 260px', background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ flex: 3, minWidth: 0, background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={th.settingLabel} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/>
@@ -585,7 +585,7 @@ export function LobbyRoomScreen() {
               </div>
 
               {/* VP to Win */}
-              <div style={{ background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ flex: 2, minWidth: 0, background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={th.settingLabel} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z"/>
