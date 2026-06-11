@@ -30,6 +30,11 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   const layout = useBoardLayout(board, 70);
   const panZoom = usePanZoom();
   const [shipMoveOrigin, setShipMoveOrigin] = useState<EdgeKey | null>(null);
+  const prevPhaseRef = React.useRef<string | null>(null);
+  if (gameState.phase !== prevPhaseRef.current) {
+    prevPhaseRef.current = gameState.phase;
+    if (shipMoveOrigin !== null) setShipMoveOrigin(null);
+  }
 
   const playerColorMap = useMemo(
     () => Object.fromEntries(gameState.players.map((p) => [p.id, COLOR_HEX[p.color] ?? '#aaa'])),
@@ -53,8 +58,8 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   // Compute valid ship move destinations when an origin is selected
   const shipMoveDestSet = useMemo(() => {
     if (!shipMoveOrigin || !myPlayerId) return new Set<EdgeKey>();
-    return new Set(validShipMoveDestinations(board, myPlayerId, shipMoveOrigin));
-  }, [shipMoveOrigin, board, myPlayerId]);
+    return new Set(validShipMoveDestinations(board, myPlayerId, shipMoveOrigin, gameState.pirateHexKey));
+  }, [shipMoveOrigin, board, myPlayerId, gameState.pirateHexKey]);
 
   const onEdgeClick = useCallback((ek: EdgeKey, isShip?: boolean) => {
     if (phase === 'SETUP_PLACE_ROAD') {
@@ -342,21 +347,24 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
           const isValidCity = showCityVertices && validMoves.cityVertices.has(vk);
           const isValid = isValidSettlement || isValidCity;
           const isDiscovery = discoveryVerts?.has(vk) ?? false;
+          const badgeW = layout.size * 0.44 * uiScale;
+          const badgeH = layout.size * 0.26 * uiScale;
+          const badgeY = -layout.size * 0.62 * uiScale;
           const badge = isDiscovery ? (
-            <g key={`disc-${vk}`} style={{ pointerEvents: 'none' }}>
+            <g key={`disc-${vk}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ pointerEvents: 'none' }}>
               <rect
-                x={pos.x + layout.size * 0.18 * uiScale}
-                y={pos.y - layout.size * 0.52 * uiScale}
-                width={layout.size * 0.42 * uiScale}
-                height={layout.size * 0.26 * uiScale}
+                x={-badgeW / 2}
+                y={badgeY}
+                width={badgeW}
+                height={badgeH}
                 rx={layout.size * 0.07 * uiScale}
                 fill="#d4a017"
                 stroke="#fff"
                 strokeWidth={layout.size * 0.025 * uiScale}
               />
               <text
-                x={pos.x + layout.size * 0.39 * uiScale}
-                y={pos.y - layout.size * 0.33 * uiScale}
+                x={0}
+                y={badgeY + badgeH / 2}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill="#fff"

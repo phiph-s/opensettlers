@@ -157,11 +157,11 @@ export function canPlaceShipAt(
   if (state.phase === 'BUILD_PHASE') {
     if (!isActivePlayer(state, playerId)) return false;
     if (!canAfford(player, BUILDING_COSTS.ship)) return false;
-    return validShipEdges(state.board, playerId).includes(edgeKey);
+    return validShipEdges(state.board, playerId, state.pirateHexKey).includes(edgeKey);
   }
   if (state.phase === 'DEV_ROAD_BUILDING') {
     if (!isActivePlayer(state, playerId)) return false;
-    return validShipEdges(state.board, playerId).includes(edgeKey);
+    return validShipEdges(state.board, playerId, state.pirateHexKey).includes(edgeKey);
   }
   return false;
 }

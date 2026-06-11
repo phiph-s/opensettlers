@@ -760,10 +760,10 @@ export class GameEngine {
     if (this.state.shipMovedThisTurn) return 'Already moved a ship this turn';
 
     const player = this.state.players.find((p) => p.id === playerId)!;
-    const validOrigins = validShipMoveOrigins(this.state.board, playerId, null);
+    const validOrigins = validShipMoveOrigins(this.state.board, playerId, null, this.state.pirateHexKey);
     if (!validOrigins.includes(fromEk)) return 'Cannot move that ship';
 
-    const validDests = validShipMoveDestinations(this.state.board, playerId, fromEk);
+    const validDests = validShipMoveDestinations(this.state.board, playerId, fromEk, this.state.pirateHexKey);
     if (!validDests.includes(toEk)) return 'Invalid ship move destination';
 
     // Move ship

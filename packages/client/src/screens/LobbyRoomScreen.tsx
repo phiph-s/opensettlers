@@ -684,15 +684,15 @@ export function LobbyRoomScreen() {
               return (
                 <div style={{
                   marginTop: 20,
-                  background: seafOn ? 'rgba(26,90,138,0.12)' : th.settingsBg,
-                  border: `1.5px solid ${seafOn ? 'rgba(70,160,220,0.4)' : th.cardUnselBorder}`,
+                  background: th.settingsBg,
+                  border: `1.5px solid ${th.cardUnselBorder}`,
                   borderRadius: 14,
                   padding: '16px 18px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 12,
                 }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: seafOn ? 'rgba(100,180,240,0.9)' : th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif" }}>
                     Sailing Expansion
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

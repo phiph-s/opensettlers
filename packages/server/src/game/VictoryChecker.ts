@@ -27,6 +27,7 @@ export function computeVP(state: GameState, player: Player): VictoryBreakdown {
     longestRoad,
     largestArmy,
     vpCards,
+    ...(discoveryVP > 0 ? { discoveryVP } : {}),
     total: settlements + cities * 2 + longestRoad + largestArmy + vpCards + discoveryVP,
   };
 }

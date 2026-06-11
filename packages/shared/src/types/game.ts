@@ -126,6 +126,7 @@ export interface VictoryBreakdown {
   longestRoad: number;
   largestArmy: number;
   vpCards: number;
+  discoveryVP?: number;
   total: number;
 }
 

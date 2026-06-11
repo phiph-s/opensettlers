@@ -87,7 +87,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
           ? new Set(validRoadEdges(board, myPlayerId))
           : new Set(),
         shipEdges: state.seafarers && canAfford(me, BUILDING_COSTS.ship) && me.shipsLeft > 0
-          ? new Set(validShipEdges(board, myPlayerId))
+          ? new Set(validShipEdges(board, myPlayerId, state.pirateHexKey))
           : new Set(),
         setupShipEdges: new Set(),
         cityVertices: canAfford(me, BUILDING_COSTS.city) && me.citiesLeft > 0
@@ -95,7 +95,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
           : new Set(),
         robberHexes: new Set(),
         shipMoveOrigins: state.seafarers && !state.shipMovedThisTurn
-          ? new Set(validShipMoveOrigins(board, myPlayerId, state.shipMovedThisTurn))
+          ? new Set(validShipMoveOrigins(board, myPlayerId, state.shipMovedThisTurn, state.pirateHexKey))
           : new Set(),
         canRoll: false,
         canEndTurn: true,
@@ -110,7 +110,7 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
         ...empty,
         roadEdges: me.roadsLeft > 0 ? new Set(validRoadEdges(board, myPlayerId)) : new Set(),
         shipEdges: state.seafarers && me.shipsLeft > 0
-          ? new Set(validShipEdges(board, myPlayerId))
+          ? new Set(validShipEdges(board, myPlayerId, state.pirateHexKey))
           : new Set(),
       };
     }

@@ -152,11 +152,12 @@ export function validRoadEdges(board: GameBoard, playerId: string): EdgeKey[] {
 }
 
 /** Returns valid ship edges for a player during normal play (seafarers) */
-export function validShipEdges(board: GameBoard, playerId: string): EdgeKey[] {
+export function validShipEdges(board: GameBoard, playerId: string, pirateHexKey?: string | null): EdgeKey[] {
   return Object.values(board.edges)
     .filter((e) => {
       if (e.ship !== null || e.road !== null) return false;
       if (!e.isWaterEdge) return false; // ships can only go on water edges
+      if (pirateHexKey && e.adjacentHexKeys.includes(pirateHexKey)) return false; // pirate blocks
       // Must connect to player's ship network, road network (via settlement), or own building
       return e.adjacentVertexKeys.some((vk) => {
         const vertex = board.vertices[vk];
@@ -186,7 +187,8 @@ export function validShipEdges(board: GameBoard, playerId: string): EdgeKey[] {
 export function validShipMoveOrigins(
   board: GameBoard,
   playerId: string,
-  builtThisTurnKey: string | null
+  builtThisTurnKey: string | null,
+  pirateHexKey?: string | null
 ): EdgeKey[] {
   const shipEdges = Object.values(board.edges).filter((e) => e.ship?.owner === playerId);
   if (shipEdges.length === 0) return [];
@@ -194,6 +196,7 @@ export function validShipMoveOrigins(
   return shipEdges
     .filter((e) => {
       if (e.key === builtThisTurnKey) return false; // can't move a ship built this turn
+      if (pirateHexKey && e.adjacentHexKeys.includes(pirateHexKey)) return false; // pirate blocks
       // Check each endpoint vertex
       for (const vk of e.adjacentVertexKeys) {
         const vertex = board.vertices[vk];
@@ -204,8 +207,8 @@ export function validShipMoveOrigins(
         const adjacentOwn = vertex.adjacentEdgeKeys.filter(
           (ek) => ek !== e.key && board.edges[ek]?.ship?.owner === playerId
         ).length;
-        // This ship is a "free end" if there's at most 1 other ship adjacent (it terminates the line)
-        if (adjacentOwn <= 1) return true;
+        // This ship is a "free end" only if no other own ships connect here (true tip of the chain)
+        if (adjacentOwn === 0) return true;
       }
       return false;
     })
@@ -216,7 +219,8 @@ export function validShipMoveOrigins(
 export function validShipMoveDestinations(
   board: GameBoard,
   playerId: string,
-  fromEdgeKey: EdgeKey
+  fromEdgeKey: EdgeKey,
+  pirateHexKey?: string | null
 ): EdgeKey[] {
   // Build the set of player ship edges EXCLUDING the one being moved
   const remaining = Object.values(board.edges).filter(
@@ -228,6 +232,7 @@ export function validShipMoveDestinations(
       if (e.ship !== null || e.road !== null) return false;
       if (!e.isWaterEdge) return false;
       if (e.key === fromEdgeKey) return false;
+      if (pirateHexKey && e.adjacentHexKeys.includes(pirateHexKey)) return false; // pirate blocks
       return e.adjacentVertexKeys.some((vk) => {
         const vertex = board.vertices[vk];
         if (!vertex) return false;

@@ -40,6 +40,8 @@ export function VictoryScreen() {
     return bTotal - aTotal;
   });
 
+  const showDiscovery = players.some((p) => (gameSummary.breakdown[p.id]?.discoveryVP ?? 0) > 0);
+
   function handlePlayAgain() {
     socket.emit('game:ready_for_next');
   }
@@ -92,6 +94,7 @@ export function VictoryScreen() {
               <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="VP Cards">🎴</th>
               <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Longest Road">🛤️</th>
               <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Largest Army">⚔️</th>
+              {showDiscovery && <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Discovery Bonus">🏝️</th>}
               <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600 }}>Total</th>
             </tr>
           </thead>
@@ -127,6 +130,7 @@ export function VictoryScreen() {
                   <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.vpCards ?? 0}</td>
                   <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.longestRoad ?? 0}</td>
                   <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.largestArmy ?? 0}</td>
+                  {showDiscovery && <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.discoveryVP ?? 0}</td>}
                   <td style={{ textAlign: 'right', padding: '8px 4px', color: color, fontWeight: 700 }}>{bd?.total ?? 0}</td>
                 </tr>
               );
