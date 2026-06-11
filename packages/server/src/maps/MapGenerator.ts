@@ -281,8 +281,9 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
 
   // Compute isWaterEdge for all remaining edges
   for (const edge of Object.values(edges)) {
-    edge.isWaterEdge = edge.adjacentHexKeys.some(
-      (hk) => hexes[hk]?.terrain === 'sea'
+    // Water edge = no adjacent land hex (sea-sea only); coastal (land+sea) edges take roads
+    edge.isWaterEdge = !edge.adjacentHexKeys.some(
+      (hk) => hexes[hk] && hexes[hk]!.terrain !== 'sea'
     );
   }
 

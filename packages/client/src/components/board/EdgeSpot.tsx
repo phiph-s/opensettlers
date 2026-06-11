@@ -113,7 +113,7 @@ export function EdgeSpot({ edge, midpoint, v1, v2, isValid, isValidShip, isMoveO
   return null;
 }
 
-/** Renders a little ship silhouette centered between v1 and v2 */
+/** Renders a top-down ship silhouette centered between v1 and v2 */
 function ShipPiece({ v1, v2, color, size, uiScale }: {
   v1: Point; v2: Point; color: string; size: number; uiScale: number;
 }) {
@@ -122,26 +122,25 @@ function ShipPiece({ v1, v2, color, size, uiScale }: {
   const dx = v2.x - v1.x;
   const dy = v2.y - v1.y;
   const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-  const shipSize = size * 0.32 * uiScale;
+  const L = size * 0.52 * uiScale; // half-length along edge
+  const W = size * 0.15 * uiScale; // half-width perpendicular
+
+  // Top-down hull: pointed bow (+L), rounded stern (-L)
+  const hullPath = `M ${L} 0 Q ${L * 0.4} ${-W} ${-L * 0.65} ${-W} Q ${-L} ${-W * 0.6} ${-L} 0 Q ${-L} ${W * 0.6} ${-L * 0.65} ${W} Q ${L * 0.4} ${W} ${L} 0 Z`;
 
   return (
     <g transform={`translate(${mx}, ${my}) rotate(${angle})`}>
-      {/* Hull */}
+      {/* Shadow */}
+      <path d={hullPath} fill="rgba(0,0,0,0.28)" transform="translate(1.5,2)" />
+      {/* Hull body */}
+      <path d={hullPath} fill={color} stroke="rgba(255,255,255,0.5)" strokeWidth={W * 0.22} />
+      {/* Deck stripe */}
       <path
-        d={`M ${-shipSize * 0.9} ${shipSize * 0.15} Q ${-shipSize} ${shipSize * 0.55} 0 ${shipSize * 0.6} Q ${shipSize} ${shipSize * 0.55} ${shipSize * 0.9} ${shipSize * 0.15} L ${shipSize * 0.65} ${-shipSize * 0.1} L ${-shipSize * 0.65} ${-shipSize * 0.1} Z`}
-        fill={color}
-        stroke="rgba(255,255,255,0.55)"
-        strokeWidth={shipSize * 0.08}
+        d={`M ${L * 0.55} 0 Q ${L * 0.2} ${-W * 0.55} ${-L * 0.5} ${-W * 0.55} L ${-L * 0.5} ${W * 0.55} Q ${L * 0.2} ${W * 0.55} ${L * 0.55} 0 Z`}
+        fill="rgba(255,255,255,0.18)"
       />
-      {/* Mast */}
-      <line x1="0" y1={-shipSize * 0.1} x2="0" y2={-shipSize * 1.15} stroke={color} strokeWidth={shipSize * 0.11} />
-      {/* Sail */}
-      <path
-        d={`M ${shipSize * 0.06} ${-shipSize * 1.1} L ${shipSize * 0.75} ${-shipSize * 0.5} L ${shipSize * 0.06} ${-shipSize * 0.18}`}
-        fill="rgba(255,255,255,0.82)"
-        stroke="rgba(200,200,200,0.5)"
-        strokeWidth={shipSize * 0.05}
-      />
+      {/* Mast dot */}
+      <circle cx={L * 0.05} cy={0} r={W * 0.32} fill="rgba(255,255,255,0.75)" />
     </g>
   );
 }
