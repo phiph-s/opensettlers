@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import type { GameState, EdgeKey, HexKey, VertexKey, PortType } from '@opensettlers/shared';
+import type { GameState, EdgeKey, HexKey, VertexKey, PortType, GameBoard } from '@opensettlers/shared';
 import { cubeKey, hexPolygonPoints, cubeToPixel, validShipMoveDestinations } from '@opensettlers/shared';
-import { useBoardLayout } from '../../hooks/useBoardLayout.js';
+import { useBoardLayout, type BoardLayout } from '../../hooks/useBoardLayout.js';
 import { usePanZoom } from './PanZoomBoard.js';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
 import { HexTile } from './HexTile.js';
@@ -11,6 +11,49 @@ import { RobberSpot } from './RobberSpot.js';
 import { PortMarker } from './PortMarker.js';
 import { TerrainPatterns } from './TerrainPatterns.js';
 import { socket } from '../../socket.js';
+import { useHoverStore } from '../../store/useHoverStore.js';
+
+function HoverHighlights({ board, layout, playerColorMap }: {
+  board: GameBoard;
+  layout: BoardLayout;
+  playerColorMap: Record<string, string>;
+}) {
+  const hoveredPlayerId = useHoverStore((s) => s.hoveredPlayerId);
+  if (!hoveredPlayerId) return null;
+  const color = playerColorMap[hoveredPlayerId] ?? '#aaa';
+  const s = layout.size;
+
+  const nodes: React.ReactNode[] = [];
+
+  for (const [vk, vertex] of Object.entries(board.vertices)) {
+    if (vertex.building?.owner !== hoveredPlayerId) continue;
+    const pos = layout.vertexPositions[vk];
+    if (!pos) continue;
+    const r = vertex.building.type === 'city' ? s * 0.32 : s * 0.26;
+    nodes.push(
+      <circle key={`hh-v-${vk}`} cx={pos.x} cy={pos.y} r={r}
+        fill="none" stroke={color} strokeWidth={s * 0.055}
+        className="piece-highlight" />
+    );
+  }
+
+  for (const [ek, edge] of Object.entries(board.edges)) {
+    const owner = edge.road?.owner ?? edge.ship?.owner;
+    if (owner !== hoveredPlayerId) continue;
+    const [vk1, vk2] = edge.adjacentVertexKeys;
+    const v1 = vk1 ? layout.vertexPositions[vk1] : undefined;
+    const v2 = vk2 ? layout.vertexPositions[vk2] : undefined;
+    if (!v1 || !v2) continue;
+    nodes.push(
+      <line key={`hh-e-${ek}`}
+        x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
+        stroke={color} strokeWidth={s * 0.28} strokeLinecap="round"
+        className="piece-highlight" />
+    );
+  }
+
+  return <g style={{ pointerEvents: 'none' }}>{nodes}</g>;
+}
 
 const COLOR_HEX: Record<string, string> = {
   red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#2c2c2c',
@@ -258,6 +301,9 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
           </g>
         );
       })}
+
+      {/* Player hover highlights — rendered below pieces, above hex tiles */}
+      <HoverHighlights board={board} layout={layout} playerColorMap={playerColorMap} />
 
       {/* Edges (roads and ships) */}
       {Object.entries(board.edges).map(([ek, edge]) => {

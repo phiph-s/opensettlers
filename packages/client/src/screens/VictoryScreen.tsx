@@ -1,5 +1,4 @@
 import React from 'react';
-import { socket } from '../socket.js';
 import { useGameStore } from '../store/useGameStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
 import type { Player } from '@opensettlers/shared';
@@ -25,8 +24,7 @@ function ordinal(n: number): string {
 export function VictoryScreen() {
   const gameSummary = useGameStore((s) => s.gameSummary);
   const gameState = useGameStore((s) => s.gameState);
-  const readyCount = useGameStore((s) => s.readyCount);
-  const readyNeeded = useGameStore((s) => s.readyNeeded);
+  const clearGame = useGameStore((s) => s.clearGame);
   const myPlayerId = usePlayerStore((s) => s.myPlayerId);
 
   if (!gameSummary) return null;
@@ -41,10 +39,6 @@ export function VictoryScreen() {
   });
 
   const showDiscovery = players.some((p) => (gameSummary.breakdown[p.id]?.discoveryVP ?? 0) > 0);
-
-  function handlePlayAgain() {
-    socket.emit('game:ready_for_next');
-  }
 
   const th: React.CSSProperties = { textAlign: 'center', padding: '6px 4px', fontWeight: 600, color: 'var(--ui-text-muted)', fontSize: 13 };
   const td: React.CSSProperties = { textAlign: 'center', padding: '8px 4px', color: 'var(--ui-text)', fontSize: 13 };
@@ -129,10 +123,10 @@ export function VictoryScreen() {
         </tbody>
       </table>
 
-      {/* Ready button */}
-      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      {/* Back to lobby */}
+      <div style={{ marginTop: 32 }}>
         <button
-          onClick={handlePlayAgain}
+          onClick={clearGame}
           style={{
             background: 'var(--ui-accent, #6b4c11)',
             color: '#fff',
@@ -147,13 +141,8 @@ export function VictoryScreen() {
             textTransform: 'uppercase',
           }}
         >
-          Play Again
+          Back to Lobby
         </button>
-        {readyCount > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--ui-text-muted)', letterSpacing: 1 }}>
-            {readyCount} / {readyNeeded} ready
-          </div>
-        )}
       </div>
     </div>
   );

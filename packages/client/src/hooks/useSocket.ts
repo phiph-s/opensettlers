@@ -8,7 +8,6 @@ export function useSocket() {
   // Stable references — Zustand setters never change identity
   const setGameState = useGameStore((s) => s.setGameState);
   const setGameSummary = useGameStore((s) => s.setGameSummary);
-  const setReadyCount = useGameStore((s) => s.setReadyCount);
   const clearGame = useGameStore((s) => s.clearGame);
   const upsertLobby = useLobbyStore((s) => s.upsertLobby);
   const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
@@ -36,11 +35,9 @@ export function useSocket() {
     });
 
     const onGameOver = (summary: Parameters<typeof setGameSummary>[0]) => setGameSummary(summary);
-    const onReadyCount = ({ count, needed }: { count: number; needed: number }) => setReadyCount(count, needed);
 
     socket.on('game:state', setGameState);
     socket.on('game:over', onGameOver);
-    socket.on('game:ready_count', onReadyCount);
 
     socket.on('lobby:updated', (lobby) => {
       upsertLobby(lobby);
@@ -64,7 +61,6 @@ export function useSocket() {
       socket.off('disconnect', clearAll);
       socket.off('game:state', setGameState);
       socket.off('game:over', onGameOver);
-      socket.off('game:ready_count', onReadyCount);
       socket.off('lobby:updated');
       socket.off('lobby:started');
       socket.disconnect();

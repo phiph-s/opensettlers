@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Player, GameBoard } from '@opensettlers/shared';
 import { longestRoadForPlayer } from '@opensettlers/shared';
+import { useHoverStore } from '../../store/useHoverStore.js';
 
 const COLOR_MAP: Record<string, string> = {
   red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#2c2c2c',
@@ -125,6 +126,7 @@ function StatBadge({ icon, count, golden, title }: { icon: React.ReactNode; coun
 
 export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, largestArmyOwner, claimedIslands, discoveryBonus }: Props) {
   const color = COLOR_MAP[player.color] ?? '#aaa';
+  const setHoveredPlayerId = useHoverStore((s) => s.setHoveredPlayerId);
   const visibleVP = computeVisibleVP(player, board, longestRoadOwner, largestArmyOwner, claimedIslands, discoveryBonus);
   const totalVP = player.victoryPoints;
   const hasHiddenVP = isMe && totalVP > visibleVP;
@@ -140,6 +142,8 @@ export function PlayerPanel({ player, isActive, isMe, board, longestRoadOwner, l
   return (
     <div
       data-player-id={player.id}
+      onMouseEnter={() => setHoveredPlayerId(player.id)}
+      onMouseLeave={() => setHoveredPlayerId(null)}
       style={{
         background: isActive ? 'var(--ui-panel-active)' : 'var(--ui-panel)',
         border: `2px solid ${isActive ? color : 'var(--ui-border)'}`,
