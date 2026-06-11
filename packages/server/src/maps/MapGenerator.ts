@@ -10,6 +10,7 @@ import { LARGE_MAP } from './large.map.js';
 import { HUGE_MAP } from './huge.map.js';
 import { CLOUDS_MAP } from './clouds.map.js';
 import { WORLD_MAP } from './world.map.js';
+import { WASTELAND_MAP } from './wasteland.map.js';
 import { distributePorts } from './portUtils.js';
 import type {
   CubeCoord,
@@ -290,7 +291,7 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
   return { board: { hexes, vertices, edges }, secrets };
 }
 
-const ALL_MAPS: MapTemplate[] = [STANDARD_MAP, LARGE_MAP, HUGE_MAP, CLOUDS_MAP, WORLD_MAP];
+const ALL_MAPS: MapTemplate[] = [STANDARD_MAP, LARGE_MAP, HUGE_MAP, CLOUDS_MAP, WASTELAND_MAP, WORLD_MAP];
 
 export { STANDARD_MAP };
 
