@@ -39,6 +39,8 @@ export class Lobby {
       vpToWin: settings.vpToWin ?? 10,
       extraBuildings: settings.extraBuildings ?? false,
       randomizeOrder: settings.randomizeOrder ?? false,
+      seafarers: settings.seafarers ?? false,
+      discoveryBonus: settings.discoveryBonus ?? true,
     };
     this.slots = Array.from({ length: this.settings.maxPlayers }, (_, i) => ({
       playerId: null,

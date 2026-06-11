@@ -33,7 +33,7 @@ export function GameScreen() {
   const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
   const validMoves = useValidMoves(gameState, myPlayerId);
   useSoundEffects(gameState, myPlayerId);
-  const [buildMode, setBuildMode] = useState<'road' | 'settlement' | 'city' | null>(null);
+  const [buildMode, setBuildMode] = useState<'road' | 'settlement' | 'city' | 'ship' | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
 
@@ -107,7 +107,7 @@ export function GameScreen() {
           bank={gameState.bank}
         />
       )}
-      {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} />}
+      {me && <BuildPanel me={me} phase={phase} validMoves={validMoves} isMyTurn={myPlayerId === activePlayer?.id} buildMode={buildMode} onBuildModeChange={setBuildMode} isSeafarers={gameState.seafarers} />}
     </div>
   );
 

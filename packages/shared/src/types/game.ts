@@ -18,6 +18,8 @@ export type TurnPhase =
   | 'GOLD_SELECT'
   | 'GAME_OVER';
 
+/** Seafarers: pirate placement is handled within ROBBER_PLACEMENT via pirateMode flag */
+
 export interface TradeOffer {
   id: string;
   fromPlayerId: string;
@@ -59,6 +61,18 @@ export interface GameState {
   pendingGoldChoices: Record<string, number>;
   devCardPlayedThisTurn: boolean;
   friendlyRobber: boolean;
+  /** Seafarers expansion is active for this game */
+  seafarers: boolean;
+  /** Seafarers: hex key where the pirate is currently placed (null = not yet placed) */
+  pirateHexKey: string | null;
+  /** Seafarers: true → pirate is being moved (robber mode = sea hexes), false → robber */
+  pirateMode: boolean;
+  /** Seafarers: discovery bonus (2 VP for first settlement on an island ≤ 7 tiles) */
+  discoveryBonus: boolean;
+  /** Seafarers: maps island-id → first player id who settled there */
+  claimedIslands: Record<string, string>;
+  /** Seafarers: edge key of the ship moved this turn (only one ship can move per turn) */
+  shipMovedThisTurn: string | null;
 }
 
 export type LobbyStatus = 'waiting' | 'in_game' | 'finished';
@@ -78,6 +92,10 @@ export interface LobbySettings {
   vpToWin: number;
   extraBuildings: boolean;
   randomizeOrder: boolean;
+  /** Seafarers expansion enabled */
+  seafarers: boolean;
+  /** Seafarers: grant 2 VP for first settlement on an island ≤ 7 tiles */
+  discoveryBonus: boolean;
 }
 
 export interface LobbySlot {

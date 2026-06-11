@@ -1,9 +1,11 @@
 import {
   validSetupVertices,
   validSetupRoads,
+  validSetupShips,
   validSettlementVertices,
   validCityVertices,
   validRoadEdges,
+  validShipEdges,
   cubeKey,
 } from '@opensettlers/shared';
 import type {
@@ -125,11 +127,43 @@ export function canMoveRobberTo(state: GameState, playerId: string, hexCoord: Cu
   if (!isActivePlayer(state, playerId)) return false;
   const hk = cubeKey(hexCoord);
   const hex = state.board.hexes[hk];
-  if (!hex || hex.terrain === 'sea') return false;
-  // Must move to a different hex
+  if (!hex) return false;
+
+  if (state.seafarers && hex.terrain === 'sea') {
+    // Pirate move — must move to a different sea hex
+    return hk !== state.pirateHexKey;
+  }
+
+  // Robber move — cannot go on sea hex, must move to a different land hex
+  if (hex.terrain === 'sea') return false;
   const currentRobberHex = Object.values(state.board.hexes).find((h) => h.hasRobber);
   if (currentRobberHex && cubeKey(currentRobberHex.coord) === hk) return false;
   return true;
+}
+
+export function canPlaceShipAt(
+  state: GameState,
+  playerId: string,
+  edgeKey: EdgeKey
+): boolean {
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player || player.shipsLeft === 0) return false;
+
+  if (state.phase === 'SETUP_PLACE_ROAD') {
+    if (!isActivePlayer(state, playerId)) return false;
+    if (!state.lastPlacedSettlementKey) return false;
+    return validSetupShips(state.board, state.lastPlacedSettlementKey).includes(edgeKey);
+  }
+  if (state.phase === 'BUILD_PHASE') {
+    if (!isActivePlayer(state, playerId)) return false;
+    if (!canAfford(player, BUILDING_COSTS.ship)) return false;
+    return validShipEdges(state.board, playerId).includes(edgeKey);
+  }
+  if (state.phase === 'DEV_ROAD_BUILDING') {
+    if (!isActivePlayer(state, playerId)) return false;
+    return validShipEdges(state.board, playerId).includes(edgeKey);
+  }
+  return false;
 }
 
 /** Returns the next active player index for setup snake draft */

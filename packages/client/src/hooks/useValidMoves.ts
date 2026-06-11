@@ -2,9 +2,12 @@ import { useMemo } from 'react';
 import {
   validSetupVertices,
   validSetupRoads,
+  validSetupShips,
   validSettlementVertices,
   validCityVertices,
   validRoadEdges,
+  validShipEdges,
+  validShipMoveOrigins,
   validRobberHexKeys,
   BUILDING_COSTS,
 } from '@opensettlers/shared';
@@ -22,8 +25,11 @@ import type { GameState, EdgeKey, VertexKey } from '@opensettlers/shared';
 export interface ValidMoves {
   settlementVertices: Set<VertexKey>;
   roadEdges: Set<EdgeKey>;
+  shipEdges: Set<EdgeKey>;
+  setupShipEdges: Set<EdgeKey>;
   cityVertices: Set<VertexKey>;
   robberHexes: Set<string>;
+  shipMoveOrigins: Set<EdgeKey>;
   canRoll: boolean;
   canEndTurn: boolean;
   canBuyDevCard: boolean;
@@ -36,8 +42,11 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
     const empty: ValidMoves = {
       settlementVertices: new Set(),
       roadEdges: new Set(),
+      shipEdges: new Set(),
+      setupShipEdges: new Set(),
       cityVertices: new Set(),
       robberHexes: new Set(),
+      shipMoveOrigins: new Set(),
       canRoll: false,
       canEndTurn: false,
       canBuyDevCard: false,
@@ -63,6 +72,9 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
       return {
         ...empty,
         roadEdges: new Set(validSetupRoads(board, state.lastPlacedSettlementKey)),
+        setupShipEdges: state.seafarers
+          ? new Set(validSetupShips(board, state.lastPlacedSettlementKey))
+          : new Set(),
       };
     }
 
@@ -74,10 +86,17 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
         roadEdges: canAfford(me, BUILDING_COSTS.road) && me.roadsLeft > 0
           ? new Set(validRoadEdges(board, myPlayerId))
           : new Set(),
+        shipEdges: state.seafarers && canAfford(me, BUILDING_COSTS.ship) && me.shipsLeft > 0
+          ? new Set(validShipEdges(board, myPlayerId))
+          : new Set(),
+        setupShipEdges: new Set(),
         cityVertices: canAfford(me, BUILDING_COSTS.city) && me.citiesLeft > 0
           ? new Set(validCityVertices(board, myPlayerId))
           : new Set(),
         robberHexes: new Set(),
+        shipMoveOrigins: state.seafarers && !state.shipMovedThisTurn
+          ? new Set(validShipMoveOrigins(board, myPlayerId, state.shipMovedThisTurn))
+          : new Set(),
         canRoll: false,
         canEndTurn: true,
         canBuyDevCard: canAfford(me, BUILDING_COSTS.dev_card) && state.devCardDeckSize > 0,
@@ -90,6 +109,9 @@ export function useValidMoves(state: GameState | null, myPlayerId: string | null
       return {
         ...empty,
         roadEdges: me.roadsLeft > 0 ? new Set(validRoadEdges(board, myPlayerId)) : new Set(),
+        shipEdges: state.seafarers && me.shipsLeft > 0
+          ? new Set(validShipEdges(board, myPlayerId))
+          : new Set(),
       };
     }
 

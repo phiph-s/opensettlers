@@ -58,6 +58,10 @@ export interface ClientToServerEvents {
   'game:build_city': (payload: { vertexKey: VertexKey }) => void;
   'game:buy_dev_card': () => void;
 
+  // Seafarers — ships
+  'game:build_ship': (payload: { edgeKey: EdgeKey }) => void;
+  'game:move_ship': (payload: { fromEdgeKey: EdgeKey; toEdgeKey: EdgeKey }) => void;
+
   // Dev cards
   'game:play_knight': () => void;
   'game:play_road_building': () => void;

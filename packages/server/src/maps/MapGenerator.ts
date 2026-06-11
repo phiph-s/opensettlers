@@ -65,12 +65,13 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
   // Find desert index for robber placement (first non-clouded desert)
   const desertIndex = shuffledTerrains.indexOf('desert');
 
-  // Place number tokens for all productive hexes (skipping desert; clouds get tokens hidden in secrets)
+  // Place number tokens for all productive hexes (skipping desert and sea; clouds get tokens hidden in secrets)
   const tokenQueue = shuffle([...template.numberTokens], rng);
   const tokenAssignments = new Map<number, number>();
   let tokenIdx = 0;
   for (let i = 0; i < shuffledTerrains.length; i++) {
-    if (shuffledTerrains[i] !== 'desert') {
+    const t = shuffledTerrains[i];
+    if (t !== 'desert' && t !== 'sea') {
       tokenAssignments.set(i, tokenQueue[tokenIdx++] ?? 0);
     }
   }
@@ -142,6 +143,8 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
           adjacentHexKeys: [],
           adjacentVertexKeys: ['', ''],
           road: null,
+          ship: null,
+          isWaterEdge: false,
         };
       }
       const neighborHk = cubeKey(neighbor);
@@ -165,8 +168,10 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
     const hexPair = edge.adjacentHexKeys;
     if (hexPair.length < 2) continue;
 
-    // Fast path: both hexes are land — find shared vertices via adjacentHexKeys lookup
-    if (landHexKeys.has(hexPair[0]!) && landHexKeys.has(hexPair[1]!)) {
+    // If both hexes are present in the board (land-land, land-sea seafarers, or sea-sea seafarers)
+    // use the shared-vertex lookup.
+    const bothPresent = hexPair.every((hk) => hexes[hk] !== undefined);
+    if (bothPresent) {
       const sharedVertices = Object.values(vertices).filter((v) => {
         const hks = v.adjacentHexKeys;
         return hexPair.every((hk) => hks.includes(hk));
@@ -180,17 +185,21 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
         }
       }
     } else {
-      // Coastline edge (one land hex, one non-existent sea hex).
-      // Compute the two connecting vertices geometrically using the direction between the hex pair.
-      const landHk = landHexKeys.has(hexPair[0]!) ? hexPair[0]! : hexPair[1]!;
-      const seaHk = landHk === hexPair[0]! ? hexPair[1]! : hexPair[0]!;
-      const landCoord = parseCubeKey(landHk);
-      const seaCoord = parseCubeKey(seaHk);
-      const diff = { q: seaCoord.q - landCoord.q, r: seaCoord.r - landCoord.r, s: seaCoord.s - landCoord.s };
+      // Coastline edge: one hex is in the board, the other is outside (pre-seafarers standard maps).
+      // Compute the two connecting vertices geometrically.
+      const presentHk = hexes[hexPair[0]!] ? hexPair[0]! : hexPair[1]!;
+      const absentHk = presentHk === hexPair[0]! ? hexPair[1]! : hexPair[0]!;
+      const presentCoord = parseCubeKey(presentHk);
+      const absentCoord = parseCubeKey(absentHk);
+      const diff = {
+        q: absentCoord.q - presentCoord.q,
+        r: absentCoord.r - presentCoord.r,
+        s: absentCoord.s - presentCoord.s,
+      };
       const d = CUBE_DIRS.findIndex((dir) => dir.q === diff.q && dir.r === diff.r && dir.s === diff.s);
       if (d === -1) continue;
-      const vk1 = vertexKey(landCoord, d);
-      const vk2 = vertexKey(landCoord, (d + 1) % 6);
+      const vk1 = vertexKey(presentCoord, d);
+      const vk2 = vertexKey(presentCoord, (d + 1) % 6);
       if (vertices[vk1] && vertices[vk2]) {
         edge.adjacentVertexKeys = [vk1, vk2];
         if (!vertices[vk1]!.adjacentEdgeKeys.includes(edge.key)) vertices[vk1]!.adjacentEdgeKeys.push(edge.key);
@@ -212,10 +221,16 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
     vertex.adjacentVertexKeys = Array.from(neighborSet);
   }
 
-  // Resolve port definitions — either fixed or randomly distributed
+  // Resolve port definitions — either fixed or randomly distributed.
+  // Use only non-sea hex coords for perimeter calculation so ports land on the coastline.
+  const portDistribCoords = template.hexes
+    .map((h, i) => ({ coord: h.coord, terrain: shuffledTerrains[i] }))
+    .filter((h) => h.terrain !== 'sea')
+    .map((h) => h.coord);
+
   const resolvedPorts: Array<{ type: PortType; edgeKey: string }> =
     template.portTypes
-      ? distributePorts(template.hexes.map((h) => h.coord), shuffle(template.portTypes, rng))
+      ? distributePorts(portDistribCoords, shuffle(template.portTypes, rng))
       : (template.ports ?? []);
 
   // Assign ports to vertices using direct vertex key computation
@@ -234,22 +249,41 @@ export function buildBoard(template: MapTemplate, rng: () => number): { board: G
     if (vertices[vk2]) vertices[vk2]!.port = portDef.type as PortType;
   }
 
-  // Remove sea-only vertices (vertices that touch no land hexes) from the board
-  for (const [vk, vertex] of Object.entries(vertices)) {
-    const touchesLand = vertex.adjacentHexKeys.some((hk) => landHexKeys.has(hk));
-    if (!touchesLand) {
-      delete vertices[vk];
+  // For seafarers maps, keep all sea-adjacent vertices/edges (for ship lanes).
+  // For non-seafarers maps, prune vertices/edges that don't touch land.
+  const isSeafarers = template.seafarers === true;
+
+  if (!isSeafarers) {
+    // Remove sea-only vertices (vertices that touch no land hexes)
+    for (const [vk, vertex] of Object.entries(vertices)) {
+      const touchesLand = vertex.adjacentHexKeys.some((hk) => landHexKeys.has(hk));
+      if (!touchesLand) delete vertices[vk];
+    }
+    // Remove edges that don't connect to any retained vertex
+    for (const [ek, edge] of Object.entries(edges)) {
+      const connectsToLand = edge.adjacentVertexKeys.some(
+        (vk) => vk && vertices[vk] !== undefined
+      );
+      if (!connectsToLand) delete edges[ek];
+    }
+  } else {
+    // Seafarers: keep vertices that touch at least one hex (land OR sea).
+    // Only discard vertices at the very outer border of sea hexes that have no real neighbors.
+    for (const [vk, vertex] of Object.entries(vertices)) {
+      if (vertex.adjacentHexKeys.length === 0) delete vertices[vk];
+    }
+    // Keep all edges that have valid vertex endpoints
+    for (const [ek, edge] of Object.entries(edges)) {
+      const valid = edge.adjacentVertexKeys.every((vk) => vk && vertices[vk] !== undefined);
+      if (!valid) delete edges[ek];
     }
   }
 
-  // Remove edges that don't connect to any land vertex
-  for (const [ek, edge] of Object.entries(edges)) {
-    const connectsToLand = edge.adjacentVertexKeys.some(
-      (vk) => vk && vertices[vk] !== undefined
+  // Compute isWaterEdge for all remaining edges
+  for (const edge of Object.values(edges)) {
+    edge.isWaterEdge = edge.adjacentHexKeys.some(
+      (hk) => hexes[hk]?.terrain === 'sea'
     );
-    if (!connectsToLand) {
-      delete edges[ek];
-    }
   }
 
   return { board: { hexes, vertices, edges }, secrets };

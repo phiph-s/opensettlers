@@ -18,6 +18,7 @@ export interface Player {
   settlementsLeft: number;
   citiesLeft: number;
   roadsLeft: number;
+  shipsLeft: number;
   hasLongestRoad: boolean;
   hasLargestArmy: boolean;
   isConnected: boolean;

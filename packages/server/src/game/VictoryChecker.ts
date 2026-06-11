@@ -13,13 +13,21 @@ export function computeVP(state: GameState, player: Player): VictoryBreakdown {
   const largestArmy = player.hasLargestArmy ? 2 : 0;
   const vpCards = player.devCards.filter((c) => c.type === 'victory_point').length;
 
+  // Seafarers discovery bonus: 2 VP per island first-settled by this player
+  let discoveryVP = 0;
+  if (state.seafarers && state.discoveryBonus) {
+    for (const ownerId of Object.values(state.claimedIslands)) {
+      if (ownerId === player.id) discoveryVP += 2;
+    }
+  }
+
   return {
     settlements,
     cities,
     longestRoad,
     largestArmy,
     vpCards,
-    total: settlements + cities * 2 + longestRoad + largestArmy + vpCards,
+    total: settlements + cities * 2 + longestRoad + largestArmy + vpCards + discoveryVP,
   };
 }
 

@@ -20,6 +20,7 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
       name: m.name,
       playerCounts: m.playerCounts,
       hexCount: m.hexes.length,
+      seafarers: !!m.seafarers,
       previewHexes: m.hexes.map((h) => ({
         q: h.coord.q,
         r: h.coord.r,

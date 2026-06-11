@@ -81,6 +81,14 @@ export function registerGameHandlers(socket: S, io: IO, manager: LobbyManager): 
     handle(socket, manager, (e, pid) => e.handleBuildRoad(pid, edgeKey));
   });
 
+  socket.on('game:build_ship', ({ edgeKey }) => {
+    handle(socket, manager, (e, pid) => e.handleBuildShip(pid, edgeKey));
+  });
+
+  socket.on('game:move_ship', ({ fromEdgeKey, toEdgeKey }) => {
+    handle(socket, manager, (e, pid) => e.handleMoveShip(pid, fromEdgeKey, toEdgeKey));
+  });
+
   socket.on('game:build_settlement', ({ vertexKey }) => {
     handle(socket, manager, (e, pid) => e.handleBuildSettlement(pid, vertexKey));
   });

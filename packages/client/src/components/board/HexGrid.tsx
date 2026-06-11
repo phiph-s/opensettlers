@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import type { GameState, EdgeKey, HexKey, VertexKey, PortType } from '@opensettlers/shared';
-import { cubeKey, hexPolygonPoints, cubeToPixel } from '@opensettlers/shared';
+import { cubeKey, hexPolygonPoints, cubeToPixel, validShipMoveDestinations } from '@opensettlers/shared';
 import { useBoardLayout } from '../../hooks/useBoardLayout.js';
 import { usePanZoom } from './PanZoomBoard.js';
 import type { ValidMoves } from '../../hooks/useValidMoves.js';
@@ -21,14 +21,15 @@ interface Props {
   gameState: GameState;
   myPlayerId: string | null;
   validMoves: ValidMoves;
-  buildMode: 'road' | 'settlement' | 'city' | null;
-  onBuildModeChange: (mode: 'road' | 'settlement' | 'city' | null) => void;
+  buildMode: 'road' | 'settlement' | 'city' | 'ship' | null;
+  onBuildModeChange: (mode: 'road' | 'settlement' | 'city' | 'ship' | null) => void;
 }
 
 export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildModeChange }: Props) {
   const { board, phase } = gameState;
   const layout = useBoardLayout(board, 70);
   const panZoom = usePanZoom();
+  const [shipMoveOrigin, setShipMoveOrigin] = useState<EdgeKey | null>(null);
 
   const playerColorMap = useMemo(
     () => Object.fromEntries(gameState.players.map((p) => [p.id, COLOR_HEX[p.color] ?? '#aaa'])),
@@ -49,14 +50,45 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
     }
   }, [phase, board, onBuildModeChange]);
 
-  const onEdgeClick = useCallback((ek: EdgeKey) => {
-    if (phase === 'SETUP_PLACE_ROAD' || phase === 'DEV_ROAD_BUILDING') {
-      socket.emit('game:place_road', { edgeKey: ek });
+  // Compute valid ship move destinations when an origin is selected
+  const shipMoveDestSet = useMemo(() => {
+    if (!shipMoveOrigin || !myPlayerId) return new Set<EdgeKey>();
+    return new Set(validShipMoveDestinations(board, myPlayerId, shipMoveOrigin));
+  }, [shipMoveOrigin, board, myPlayerId]);
+
+  const onEdgeClick = useCallback((ek: EdgeKey, isShip?: boolean) => {
+    if (phase === 'SETUP_PLACE_ROAD') {
+      if (isShip) {
+        socket.emit('game:build_ship', { edgeKey: ek });
+      } else {
+        socket.emit('game:place_road', { edgeKey: ek });
+      }
+    } else if (phase === 'DEV_ROAD_BUILDING') {
+      if (isShip) {
+        socket.emit('game:build_ship', { edgeKey: ek });
+      } else {
+        socket.emit('game:place_road', { edgeKey: ek });
+      }
     } else if (phase === 'BUILD_PHASE') {
-      socket.emit('game:build_road', { edgeKey: ek });
-      onBuildModeChange(null);
+      // Ship move: click origin → then click destination
+      if (validMoves.shipMoveOrigins.has(ek)) {
+        setShipMoveOrigin((prev) => prev === ek ? null : ek);
+        return;
+      }
+      if (shipMoveOrigin && shipMoveDestSet.has(ek)) {
+        socket.emit('game:move_ship', { fromEdgeKey: shipMoveOrigin, toEdgeKey: ek });
+        setShipMoveOrigin(null);
+        return;
+      }
+      if (buildMode === 'ship' || isShip) {
+        socket.emit('game:build_ship', { edgeKey: ek });
+        onBuildModeChange(null);
+      } else {
+        socket.emit('game:build_road', { edgeKey: ek });
+        onBuildModeChange(null);
+      }
     }
-  }, [phase, onBuildModeChange]);
+  }, [phase, buildMode, onBuildModeChange, validMoves.shipMoveOrigins, shipMoveDestSet, shipMoveOrigin]);
 
   const onHexClick = useCallback((hk: HexKey) => {
     if (phase === 'ROBBER_PLACEMENT' && validMoves.robberHexes.has(hk)) {
@@ -69,6 +101,7 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
   const isSetupSettlement = phase === 'SETUP_PLACE_SETTLEMENT';
   const isSetupRoad = phase === 'SETUP_PLACE_ROAD' || phase === 'DEV_ROAD_BUILDING';
   const showRoadEdges = isSetupRoad || (phase === 'BUILD_PHASE' && buildMode === 'road');
+  const showShipEdges = isSetupRoad || (phase === 'BUILD_PHASE' && buildMode === 'ship');
   const showSettlementVertices = isSetupSettlement || (phase === 'BUILD_PHASE' && buildMode === 'settlement');
   const showCityVertices = phase === 'BUILD_PHASE' && buildMode === 'city';
 
@@ -173,6 +206,27 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         );
       })}
 
+      {/* Sea hex overlays — visible in seafarers maps as transparent tinted hexagons */}
+      {gameState.seafarers && Object.entries(board.hexes).map(([hk, hex]) => {
+        if (hex.terrain !== 'sea') return null;
+        const center = layout.hexCenters[hk];
+        if (!center) return null;
+        const isRobberTarget = validMoves.robberHexes.has(hk);
+        const isPirate = gameState.pirateHexKey === hk;
+        return (
+          <g key={`sea-${hk}`} onClick={isRobberTarget ? () => onHexClick(hk) : undefined} style={isRobberTarget ? { cursor: 'pointer' } : undefined}>
+            <polygon
+              points={hexPolygonPoints(center, layout.size * 0.92)}
+              fill={isRobberTarget ? 'rgba(80,160,220,0.18)' : 'rgba(26,90,138,0.22)'}
+              stroke={isRobberTarget ? 'rgba(80,160,220,0.55)' : 'rgba(26,90,138,0.35)'}
+              strokeWidth={isRobberTarget ? 2 : 1}
+              strokeDasharray={isRobberTarget ? '6 3' : undefined}
+            />
+            {isPirate && <PiratePiece cx={center.x} cy={center.y} r={layout.size * 0.26} uiScale={uiScale} />}
+          </g>
+        );
+      })}
+
       {/* Hex tiles (sea hexes skipped — animated ocean background shows through) */}
       {Object.entries(board.hexes).map(([hk, hex]) => {
         if (hex.terrain === 'sea') return null;
@@ -196,13 +250,18 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         );
       })}
 
-      {/* Edges (roads) */}
+      {/* Edges (roads and ships) */}
       {Object.entries(board.edges).map(([ek, edge]) => {
         const midpoint = layout.edgeMidpoints[ek];
         if (!midpoint) return null;
         const [vk1, vk2] = edge.adjacentVertexKeys;
         const v1 = vk1 ? layout.vertexPositions[vk1] : undefined;
         const v2 = vk2 ? layout.vertexPositions[vk2] : undefined;
+        const isShipBuild = showShipEdges && (validMoves.shipEdges.has(ek) || validMoves.setupShipEdges.has(ek));
+        const isMoveOrigin = validMoves.shipMoveOrigins.has(ek);
+        const isMoveSelected = shipMoveOrigin === ek;
+        const isMoveDest = !!shipMoveOrigin && shipMoveDestSet.has(ek);
+        const isShipAction = isShipBuild || edge.ship != null || isMoveOrigin || isMoveDest;
         return (
           <EdgeSpot
             key={ek}
@@ -211,10 +270,13 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
             v1={v1}
             v2={v2}
             isValid={showRoadEdges && validMoves.roadEdges.has(ek)}
+            isValidShip={isShipBuild || isMoveDest}
+            isMoveOrigin={isMoveOrigin}
+            isMoveSelected={isMoveSelected}
             size={layout.size}
             uiScale={uiScale}
             playerColorMap={playerColorMap}
-            onClick={() => onEdgeClick(ek)}
+            onClick={() => onEdgeClick(ek, isShipAction)}
           />
         );
       })}
@@ -286,5 +348,31 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
         );
       })}
     </svg>
+  );
+}
+
+function PiratePiece({ cx, cy, r, uiScale }: { cx: number; cy: number; r: number; uiScale: number }) {
+  const s = r * uiScale;
+  return (
+    <g transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
+      {/* Black flag pole */}
+      <line x1={s * 0.1} y1={-s * 1.1} x2={s * 0.1} y2={s * 0.3} stroke="#2c1a0e" strokeWidth={s * 0.14} strokeLinecap="round" />
+      {/* Jolly Roger flag */}
+      <polygon
+        points={`${s * 0.1},${-s * 1.1} ${s * 0.85},${-s * 0.85} ${s * 0.1},${-s * 0.6}`}
+        fill="#1a1a1a"
+        stroke="#444"
+        strokeWidth={s * 0.04}
+      />
+      {/* Skull on flag */}
+      <circle cx={s * 0.45} cy={-s * 0.87} r={s * 0.13} fill="white" />
+      {/* Ship hull */}
+      <path
+        d={`M ${-s * 0.85} ${s * 0.05} Q ${-s * 0.9} ${s * 0.5} 0 ${s * 0.55} Q ${s * 0.9} ${s * 0.5} ${s * 0.85} ${s * 0.05} L ${s * 0.6} ${-s * 0.15} L ${-s * 0.6} ${-s * 0.15} Z`}
+        fill="#2c1a0e"
+        stroke="#5a3010"
+        strokeWidth={s * 0.07}
+      />
+    </g>
   );
 }

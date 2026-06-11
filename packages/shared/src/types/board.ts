@@ -42,6 +42,9 @@ export interface Edge {
   adjacentHexKeys: HexKey[];
   adjacentVertexKeys: [VertexKey, VertexKey];
   road: { owner: string } | null;
+  ship: { owner: string } | null;
+  /** True when at least one adjacent hex is sea terrain (valid lane for ships) */
+  isWaterEdge: boolean;
 }
 
 export interface GameBoard {
@@ -64,4 +67,6 @@ export interface MapTemplate {
   /** Hex coords displayed as 'clouds' until revealed by adjacent road placement */
   cloudedCoords?: CubeCoord[];
   playerCounts: number[];
+  /** This map supports the Seafarers expansion (has sea hexes and ship lanes) */
+  seafarers?: boolean;
 }

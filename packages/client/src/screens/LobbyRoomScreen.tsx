@@ -12,7 +12,7 @@ const COLOR_CSS: Record<string, string> = {
 };
 
 interface PreviewHex { q: number; r: number; terrain?: string }
-interface MapMeta { id: string; name: string; playerCounts: number[]; hexCount?: number; previewHexes?: PreviewHex[] }
+interface MapMeta { id: string; name: string; playerCounts: number[]; hexCount?: number; seafarers?: boolean; previewHexes?: PreviewHex[] }
 
 function makeTheme(dark: boolean) {
   if (dark) return {
@@ -586,6 +586,48 @@ export function LobbyRoomScreen() {
                   </button>
                 );
               })}
+
+              {/* Seafarers toggle — only shown when the selected map supports it */}
+              {availableMaps.find((m) => m.id === settings.mapTemplateId)?.seafarers && (() => {
+                const seafOn = !!(settings as unknown as Record<string, unknown>)['seafarers'];
+                const discOn = !!(settings as unknown as Record<string, unknown>)['discoveryBonus'];
+                return (
+                  <>
+                    <button
+                      disabled={!isHost}
+                      onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { seafarers: !seafOn, discoveryBonus: !seafOn ? discOn : false } })}
+                      style={{
+                        flex: 1, background: seafOn ? th.cardSelBg : th.settingsBg,
+                        border: `1.5px solid ${seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
+                        borderRadius: 14, padding: '12px 14px',
+                        cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>Sailing Expansion</div>
+                      <div style={{ fontSize: 10, color: seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>Ships, pirate &amp; sea routes</div>
+                    </button>
+                    {seafOn && (
+                      <button
+                        disabled={!isHost}
+                        onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { discoveryBonus: !discOn } })}
+                        style={{
+                          flex: 1, background: discOn ? th.cardSelBg : th.settingsBg,
+                          border: `1.5px solid ${discOn ? th.cardSelBorder : th.cardUnselBorder}`,
+                          borderRadius: 14, padding: '12px 14px',
+                          cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
+                          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                          transition: 'background 0.15s, border-color 0.15s',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: discOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>Discovery Bonus</div>
+                        <div style={{ fontSize: 10, color: discOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>+2 VP for first island settlement</div>
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* VP to Win — segmented picker */}
               <div style={{

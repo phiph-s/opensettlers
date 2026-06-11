@@ -53,6 +53,19 @@ function DevCardIcon() {
   );
 }
 
+function ShipIcon() {
+  return (
+    <svg width="22" height="14" viewBox="0 0 22 14" style={{ display: 'block', flexShrink: 0 }}>
+      {/* Hull */}
+      <path d="M2 7 Q1 12 11 13 Q21 12 20 7 L17 4 L5 4 Z" fill="currentColor" opacity="0.9" />
+      {/* Mast */}
+      <line x1="11" y1="4" x2="11" y2="0" stroke="currentColor" strokeWidth="1.5" />
+      {/* Sail */}
+      <path d="M12 1 L20 5 L12 7 Z" fill="currentColor" opacity="0.7" />
+    </svg>
+  );
+}
+
 function EndTurnIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 15 15" style={{ display: 'block', flexShrink: 0 }}>
@@ -75,8 +88,9 @@ interface Props {
   phase: TurnPhase;
   validMoves: ValidMoves;
   isMyTurn: boolean;
-  buildMode: 'road' | 'settlement' | 'city' | null;
-  onBuildModeChange: (mode: 'road' | 'settlement' | 'city' | null) => void;
+  buildMode: 'road' | 'settlement' | 'city' | 'ship' | null;
+  onBuildModeChange: (mode: 'road' | 'settlement' | 'city' | 'ship' | null) => void;
+  isSeafarers?: boolean;
 }
 
 function CostTooltip({ cost, player, reason }: { cost: Partial<Record<Resource, number>>; player: Player; reason?: string }) {
@@ -202,13 +216,13 @@ function ActionButton({ label, icon, cost, player, disabled, onClick, color = '#
 
 const BTN_HEIGHT = 34;
 
-export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuildModeChange }: Props) {
+export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuildModeChange, isSeafarers }: Props) {
   const inBuild = phase === 'BUILD_PHASE' || phase === 'DEV_ROAD_BUILDING';
   const canEnd = validMoves.canEndTurn && isMyTurn;
 
   if (!inBuild && !canEnd) return null;
 
-  const toggle = (mode: 'road' | 'settlement' | 'city') => {
+  const toggle = (mode: 'road' | 'settlement' | 'city' | 'ship') => {
     onBuildModeChange(buildMode === mode ? null : mode);
   };
 
@@ -255,6 +269,20 @@ export function BuildPanel({ me, phase, validMoves, isMyTurn, buildMode, onBuild
             active={buildMode === 'city'}
             onClick={() => toggle('city')}
           />
+          {isSeafarers && (
+            <ActionButton
+              label="Ship"
+              icon={<ShipIcon />}
+              cost={BUILDING_COSTS.ship}
+              player={me}
+              piecesLeft={me.shipsLeft}
+              disabled={!isMyTurn || !canAfford(me, BUILDING_COSTS.ship) || validMoves.shipEdges.size === 0}
+              reason={isMyTurn ? (me.shipsLeft === 0 ? 'No ships left' : validMoves.shipEdges.size === 0 ? 'No valid locations' : undefined) : undefined}
+              active={buildMode === 'ship'}
+              onClick={() => toggle('ship')}
+              color="#1a5a8a"
+            />
+          )}
           <ActionButton
             label="Dev Card"
             icon={<DevCardIcon />}

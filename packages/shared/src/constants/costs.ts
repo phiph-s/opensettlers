@@ -8,6 +8,7 @@ export const BUILDING_COSTS = {
   settlement: { wood: 1, brick: 1, wheat: 1, sheep: 1 } as Cost,
   city: { ore: 3, wheat: 2 } as Cost,
   dev_card: { ore: 1, wheat: 1, sheep: 1 } as Cost,
+  ship: { wood: 1, sheep: 1 } as Cost,
 } as const;
 
 export function canAfford(player: Player, cost: Cost): boolean {

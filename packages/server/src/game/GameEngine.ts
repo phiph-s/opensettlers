@@ -2,14 +2,20 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   computeLongestRoad,
   cubeKey,
+  cubeNeighbors,
   BUILDING_COSTS,
   LONGEST_ROAD_MINIMUM,
+  validShipEdges,
+  validShipMoveOrigins,
+  validShipMoveDestinations,
+  validSetupShips,
 } from '@opensettlers/shared';
 import type {
   CubeCoord,
   DevCardType,
   EdgeKey,
   GameState,
+  HexKey,
   LobbySettings,
   Player,
   Resource,
@@ -54,6 +60,7 @@ import {
   canPlaceRoadAt,
   canPlaceCityAt,
   canMoveRobberTo,
+  canPlaceShipAt,
   isActivePlayer,
   nextSetupPlayerIndex,
 } from './TurnStateMachine.js';
@@ -113,6 +120,7 @@ export class GameEngine {
       settlementsLeft: pieces.settlements,
       citiesLeft: pieces.cities,
       roadsLeft: pieces.roads,
+      shipsLeft: pieces.ships,
       hasLongestRoad: false,
       hasLargestArmy: false,
       isConnected: true,
@@ -151,6 +159,12 @@ export class GameEngine {
       pendingGoldChoices: {},
       devCardPlayedThisTurn: false,
       friendlyRobber: settings.friendlyRobber,
+      seafarers: settings.seafarers && (mapTemplate.seafarers === true),
+      pirateHexKey: null,
+      pirateMode: false,
+      discoveryBonus: settings.discoveryBonus,
+      claimedIslands: {},
+      shipMovedThisTurn: null,
     };
   }
 
@@ -343,6 +357,7 @@ export class GameEngine {
       playerId,
     });
 
+    this.checkAndGrantDiscoveryBonus(playerId, vk);
     this.updateLongestRoad();
     this.updateVP();
     this.advancePhase('SETUP_PLACE_ROAD');
@@ -482,8 +497,42 @@ export class GameEngine {
   handleMoveRobber(playerId: string, hexCoord: CubeCoord): string | null {
     if (!canMoveRobberTo(this.state, playerId, hexCoord)) return 'Invalid robber placement';
 
+    const hk = cubeKey(hexCoord);
+    const hex = this.state.board.hexes[hk];
+    if (!hex) return 'Hex not found';
+
+    // Seafarers: sea hex = move pirate, land hex = move robber
+    if (this.state.seafarers && hex.terrain === 'sea') {
+      this.state.pirateHexKey = hk;
+      this.state.pirateMode = false;
+
+      this.io.to(this.lobbyId).emit('game:robber_moved', { hexCoord, byPlayerId: playerId });
+
+      // Pirate steals from players with ships adjacent to this hex
+      const candidateMap = new Map<string, number>(); // playerId -> ship count adjacent
+      for (const edge of Object.values(this.state.board.edges)) {
+        if (!edge.adjacentHexKeys.includes(hk)) continue;
+        if (!edge.ship || edge.ship.owner === playerId) continue;
+        const ownerId = edge.ship.owner;
+        candidateMap.set(ownerId, (candidateMap.get(ownerId) ?? 0) + 1);
+      }
+      const candidates = Array.from(candidateMap.keys());
+      this.state.robberCandidates = candidates;
+
+      this.timer.cancel(this.gameId);
+      if (candidates.length > 1) {
+        this.advancePhase('STEAL');
+      } else if (candidates.length === 1) {
+        this.doSteal(playerId, candidates[0]!);
+        this.advancePhaseAfterRobber();
+      } else {
+        this.advancePhaseAfterRobber();
+      }
+      return null;
+    }
+
+    // Standard robber (land hex)
     if (this.settings.friendlyRobber) {
-      const hk = cubeKey(hexCoord);
       const buildingOwners = Object.values(this.state.board.vertices)
         .filter((v) => v.adjacentHexKeys.includes(hk) && v.building && v.building.owner !== playerId)
         .map((v) => v.building!.owner);
@@ -497,10 +546,9 @@ export class GameEngine {
     }
 
     // Clear old robber
-    for (const hex of Object.values(this.state.board.hexes)) {
-      hex.hasRobber = false;
+    for (const h of Object.values(this.state.board.hexes)) {
+      h.hasRobber = false;
     }
-    const hk = cubeKey(hexCoord);
     this.state.board.hexes[hk]!.hasRobber = true;
 
     this.io.to(this.lobbyId).emit('game:robber_moved', { hexCoord, byPlayerId: playerId });
@@ -619,6 +667,7 @@ export class GameEngine {
       playerId,
     });
 
+    this.checkAndGrantDiscoveryBonus(playerId, vk);
     // Placing a settlement may break an opponent's longest road
     this.updateLongestRoad();
     if (this.attemptWin()) return null;
@@ -649,6 +698,131 @@ export class GameEngine {
     this.broadcastState();
     return null;
   }
+
+  // ── Seafarers ─────────────────────────────────────────────────────────────
+
+  handleBuildShip(playerId: string, ek: EdgeKey): string | null {
+    if (!canPlaceShipAt(this.state, playerId, ek)) return 'Invalid ship placement';
+    const player = this.state.players.find((p) => p.id === playerId)!;
+
+    if (this.state.phase === 'BUILD_PHASE') {
+      if (!canAfford(player, BUILDING_COSTS.ship)) return 'Cannot afford ship';
+      deductCost(player, BUILDING_COSTS.ship);
+      this.returnCostToBank(BUILDING_COSTS.ship);
+    }
+    // DEV_ROAD_BUILDING: free; SETUP_PLACE_ROAD: free
+
+    this.state.board.edges[ek]!.ship = { owner: playerId };
+    player.shipsLeft--;
+
+    this.io.to(this.lobbyId).emit('game:building_placed', {
+      buildingType: 'road', // reuse road event type for now; client distinguishes via edge.ship
+      key: ek,
+      playerId,
+    });
+
+    this.updateLongestRoad();
+
+    if (this.state.phase === 'SETUP_PLACE_ROAD') {
+      const next = nextSetupPlayerIndex(this.state);
+      if (next.done) {
+        this.state.activePlayerIndex = 0;
+        this.state.turnNumber = 1;
+        this.advancePhase('PRE_ROLL');
+      } else {
+        this.state.activePlayerIndex = next.index;
+        this.state.setupRound = next.round;
+        this.state.setupDirection = next.direction;
+        this.advancePhase('SETUP_PLACE_SETTLEMENT');
+      }
+      return null;
+    }
+
+    if (this.state.phase === 'DEV_ROAD_BUILDING') {
+      this.state.devRoadsRemaining = (this.state.devRoadsRemaining - 1) as 0 | 1 | 2;
+      if (this.state.devRoadsRemaining === 0) {
+        this.advancePhase('BUILD_PHASE');
+        return null;
+      }
+    }
+
+    if (this.attemptWin()) return null;
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  handleMoveShip(playerId: string, fromEk: EdgeKey, toEk: EdgeKey): string | null {
+    if (this.state.phase !== 'BUILD_PHASE') return 'Cannot move ship now';
+    if (!isActivePlayer(this.state, playerId)) return 'Not your turn';
+    if (!this.state.seafarers) return 'Not a seafarers game';
+    if (this.state.shipMovedThisTurn) return 'Already moved a ship this turn';
+
+    const player = this.state.players.find((p) => p.id === playerId)!;
+    const validOrigins = validShipMoveOrigins(this.state.board, playerId, null);
+    if (!validOrigins.includes(fromEk)) return 'Cannot move that ship';
+
+    const validDests = validShipMoveDestinations(this.state.board, playerId, fromEk);
+    if (!validDests.includes(toEk)) return 'Invalid ship move destination';
+
+    // Move ship
+    this.state.board.edges[fromEk]!.ship = null;
+    this.state.board.edges[toEk]!.ship = { owner: playerId };
+    this.state.shipMovedThisTurn = toEk;
+
+    this.updateLongestRoad();
+    if (this.attemptWin()) return null;
+    this.updateVP();
+    this.broadcastState();
+    return null;
+  }
+
+  // ── Seafarers: Island discovery bonus ─────────────────────────────────────
+
+  private getConnectedIsland(startHexKey: HexKey): { hexKeys: HexKey[]; islandId: string } | null {
+    const startHex = this.state.board.hexes[startHexKey];
+    if (!startHex || startHex.terrain === 'sea') return null;
+
+    // BFS over non-sea hexes
+    const visited = new Set<HexKey>();
+    const queue: HexKey[] = [startHexKey];
+    visited.add(startHexKey);
+
+    while (queue.length > 0) {
+      const hk = queue.shift()!;
+      const hex = this.state.board.hexes[hk];
+      if (!hex) continue;
+      for (const neighbor of cubeNeighbors(hex.coord)) {
+        const nhk = cubeKey(neighbor);
+        if (visited.has(nhk)) continue;
+        const nhex = this.state.board.hexes[nhk];
+        if (!nhex || nhex.terrain === 'sea') continue;
+        visited.add(nhk);
+        queue.push(nhk);
+      }
+    }
+
+    const hexKeys = Array.from(visited).sort();
+    return { hexKeys, islandId: hexKeys[0]! };
+  }
+
+  private checkAndGrantDiscoveryBonus(playerId: string, vk: VertexKey): void {
+    if (!this.state.seafarers || !this.state.discoveryBonus) return;
+    const vertex = this.state.board.vertices[vk];
+    if (!vertex) return;
+
+    for (const hk of vertex.adjacentHexKeys) {
+      const island = this.getConnectedIsland(hk);
+      if (!island) continue;
+      if (island.hexKeys.length > 7) continue;
+      if (this.state.claimedIslands[island.islandId]) continue;
+
+      // First settlement on this island — grant 2 VP (tracked in claimed islands, VP computed separately)
+      this.state.claimedIslands[island.islandId] = playerId;
+    }
+  }
+
+  // ── Buy Dev Card ───────────────────────────────────────────────────────────
 
   handleBuyDevCard(playerId: string): string | null {
     if (this.state.phase !== 'BUILD_PHASE') return 'Cannot buy dev card now';
@@ -940,6 +1114,7 @@ export class GameEngine {
       (this.state.activePlayerIndex + 1) % this.state.players.length;
     this.state.turnNumber++;
     this.state.devCardPlayedThisTurn = false;
+    this.state.shipMovedThisTurn = null;
     this.advancePhase('PRE_ROLL');
     return null;
   }
