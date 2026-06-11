@@ -840,6 +840,7 @@ export class GameEngine {
     this.state.devCardDeckSize = this.devDeck.length;
     player.devCards.push({ type: card, turnDrawn: this.state.turnNumber });
 
+    this.io.to(this.lobbyId).emit('game:dev_card_bought', { playerId });
     if (this.attemptWin()) return null;
     this.updateVP();
     this.broadcastState();

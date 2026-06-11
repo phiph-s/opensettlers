@@ -502,18 +502,21 @@ export class BotController {
             if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.settlement, this.engine, this.playerId)) continue;
           } else if (canCity) {
             if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.city, this.engine, this.playerId)) continue;
+          } else if (canRoad) {
+            // No settlement/city spots — trade toward roads to expand the network
+            if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.road, this.engine, this.playerId)) continue;
           }
 
-          // 6. Buy dev card — cap at 3 unplayed non-VP cards
+          // 6. Buy dev card — cap at 3 total unplayed non-VP cards (including bought this turn)
           const unplayedActionCards = currentMe.devCards.filter(
-            (c) => c.type !== 'victory_point' && c.turnDrawn < currentState.turnNumber
+            (c) => c.type !== 'victory_point'
           ).length;
           if (canAfford(currentMe.hand, BUILDING_COSTS.dev_card) && currentState.devCardDeckSize > 0 && unplayedActionCards < 3) {
             if (this.engine.handleBuyDevCard(this.playerId) === null) continue;
           }
 
-          // 7. Maritime trade to dump surplus when hand is large
-          if (handTotal(currentMe.hand) > 7 && currentState.devCardDeckSize > 0) {
+          // 7. Maritime trade to dump surplus when hand is large and dev cards are worth buying
+          if (handTotal(currentMe.hand) > 7 && currentState.devCardDeckSize > 0 && unplayedActionCards < 3) {
             if (tryMaritimeTrade(currentState, currentMe, BUILDING_COSTS.dev_card, this.engine, this.playerId)) continue;
           }
 

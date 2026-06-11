@@ -46,122 +46,114 @@ export function VictoryScreen() {
     socket.emit('game:ready_for_next');
   }
 
+  const th: React.CSSProperties = { textAlign: 'center', padding: '6px 4px', fontWeight: 600, color: 'var(--ui-text-muted)', fontSize: 13 };
+  const td: React.CSSProperties = { textAlign: 'center', padding: '8px 4px', color: 'var(--ui-text)', fontSize: 13 };
+
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(20, 40, 60, 0.92)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      background: 'rgba(0,0,0,0.55)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000,
-      fontFamily: 'system-ui, sans-serif',
+      fontFamily: "'Cinzel', Georgia, serif",
     }}>
-      <div style={{
-        background: '#fffdf7',
-        borderRadius: 16,
-        padding: '32px 40px',
-        maxWidth: 560,
-        width: '90%',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
-        border: '2px solid #c9bfae',
-      }}>
-        {/* Winner announcement */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 40 }}>🏆</div>
-          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#2c2516', marginTop: 4 }}>
-            {winner ? (
-              <>
-                <span style={{ color: COLOR_MAP[winner.color] ?? '#555' }}>{winner.name}</span>
-                {' wins!'}
-              </>
-            ) : 'Game Over'}
-          </div>
-          <div style={{ fontSize: 13, color: '#7a6d5e', marginTop: 4 }}>
-            {gameSummary.breakdown[gameSummary.winnerId]?.total ?? 0} victory points
-          </div>
+      {/* Winner announcement */}
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ fontSize: 52, lineHeight: 1 }}>🏆</div>
+        <div style={{ fontSize: 26, fontWeight: 'bold', color: 'var(--ui-text)', marginTop: 8 }}>
+          {winner ? (
+            <>
+              <span style={{ color: COLOR_MAP[winner.color] ?? 'var(--ui-text)' }}>{winner.name}</span>
+              {' wins!'}
+            </>
+          ) : 'Game Over'}
         </div>
-
-        {/* Scoreboard */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #c9bfae', color: '#7a6d5e' }}>
-              <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>Place</th>
-              <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>Player</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Settlements">🏠</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Cities">🏙️</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="VP Cards">🎴</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Longest Road">🛤️</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Largest Army">⚔️</th>
-              {showDiscovery && <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 600 }} title="Discovery Bonus">🏝️</th>}
-              <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600 }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((player, idx) => {
-              const bd = gameSummary.breakdown[player.id];
-              const isWinner = player.id === gameSummary.winnerId;
-              const color = COLOR_MAP[player.color] ?? '#555';
-              return (
-                <tr
-                  key={player.id}
-                  style={{
-                    borderBottom: '1px solid #e8e1d5',
-                    background: isWinner ? '#fff8ee' : 'transparent',
-                    fontWeight: isWinner ? 600 : 400,
-                  }}
-                >
-                  <td style={{ padding: '8px 4px', color: '#7a6d5e' }}>{ordinal(idx + 1)}</td>
-                  <td style={{ padding: '8px 4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: color, display: 'inline-block', flexShrink: 0,
-                      }} />
-                      <span style={{ color: '#2c2516' }}>{player.name}</span>
-                      {player.id === myPlayerId && (
-                        <span style={{ fontSize: 10, color: '#7a6d5e' }}>(you)</span>
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.settlements ?? 0}</td>
-                  <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.cities ?? 0}</td>
-                  <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.vpCards ?? 0}</td>
-                  <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.longestRoad ?? 0}</td>
-                  <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.largestArmy ?? 0}</td>
-                  {showDiscovery && <td style={{ textAlign: 'center', padding: '8px 4px', color: '#2c2516' }}>{bd?.discoveryVP ?? 0}</td>}
-                  <td style={{ textAlign: 'right', padding: '8px 4px', color: color, fontWeight: 700 }}>{bd?.total ?? 0}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Ready button */}
-        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={handlePlayAgain}
-            style={{
-              background: '#6b4c11',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              padding: '12px 32px',
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: 'pointer',
-              letterSpacing: 0.5,
-            }}
-          >
-            Play Again
-          </button>
-          {readyCount > 0 && (
-            <div style={{ fontSize: 12, color: '#7a6d5e' }}>
-              {readyCount} / {readyNeeded} ready to return to lobby
-            </div>
-          )}
+        <div style={{ fontSize: 13, color: 'var(--ui-text-muted)', marginTop: 6, letterSpacing: 1 }}>
+          {gameSummary.breakdown[gameSummary.winnerId]?.total ?? 0} victory points
         </div>
+      </div>
+
+      {/* Scoreboard */}
+      <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 360 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--ui-border)' }}>
+            <th style={{ ...th, textAlign: 'left' }}>Place</th>
+            <th style={{ ...th, textAlign: 'left' }}>Player</th>
+            <th style={th} title="Settlements (1 VP each)">🏠</th>
+            <th style={th} title="Cities (2 VP each)">🏙️</th>
+            <th style={th} title="VP Cards">🎴</th>
+            <th style={th} title="Longest Road">🛤️</th>
+            <th style={th} title="Largest Army">⚔️</th>
+            {showDiscovery && <th style={th} title="Discovery Bonus">🏝️</th>}
+            <th style={{ ...th, textAlign: 'right' }}>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((player, idx) => {
+            const bd = gameSummary.breakdown[player.id];
+            const isWinner = player.id === gameSummary.winnerId;
+            const color = COLOR_MAP[player.color] ?? 'var(--ui-text)';
+            return (
+              <tr
+                key={player.id}
+                style={{
+                  borderBottom: '1px solid var(--ui-border)',
+                  opacity: isWinner ? 1 : 0.85,
+                  fontWeight: isWinner ? 700 : 400,
+                }}
+              >
+                <td style={{ ...td, textAlign: 'left', color: 'var(--ui-text-muted)' }}>{ordinal(idx + 1)}</td>
+                <td style={{ ...td, textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+                    <span style={{ color: 'var(--ui-text)' }}>{player.name}</span>
+                    {player.id === myPlayerId && <span style={{ fontSize: 10, color: 'var(--ui-text-muted)' }}>(you)</span>}
+                  </div>
+                </td>
+                <td style={td}>{bd?.settlements ?? 0}</td>
+                <td style={td}>{(bd?.cities ?? 0) * 2}</td>
+                <td style={td}>{bd?.vpCards ?? 0}</td>
+                <td style={td}>{bd?.longestRoad ?? 0}</td>
+                <td style={td}>{bd?.largestArmy ?? 0}</td>
+                {showDiscovery && <td style={td}>{bd?.discoveryVP ?? 0}</td>}
+                <td style={{ ...td, textAlign: 'right', color, fontWeight: 700, fontSize: 15 }}>{bd?.total ?? 0}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Ready button */}
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <button
+          onClick={handlePlayAgain}
+          style={{
+            background: 'var(--ui-accent, #6b4c11)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '12px 36px',
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+            letterSpacing: 2,
+            fontFamily: "'Cinzel', Georgia, serif",
+            textTransform: 'uppercase',
+          }}
+        >
+          Play Again
+        </button>
+        {readyCount > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--ui-text-muted)', letterSpacing: 1 }}>
+            {readyCount} / {readyNeeded} ready
+          </div>
+        )}
       </div>
     </div>
   );

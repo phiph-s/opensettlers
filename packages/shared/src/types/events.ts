@@ -126,6 +126,9 @@ export interface ServerToClientEvents {
     cardType: DevCardType;
     playerId: string;
   }) => void;
+  'game:dev_card_bought': (payload: {
+    playerId: string;
+  }) => void;
   'game:trade_proposed': (offer: TradeOffer) => void;
   'game:trade_resolved': (payload: {
     offerId: string;

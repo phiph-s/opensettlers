@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameState } from '@opensettlers/shared';
 import { socket } from '../socket.js';
-import { playResourceGain, playYourTurn, playRobber, playPiecePlaced, playTradeProposed, playTriumph } from '../sounds/soundEngine.js';
+import { playResourceGain, playYourTurn, playRobber, playPiecePlaced, playTradeProposed, playTriumph, playVictoryFanfare } from '../sounds/soundEngine.js';
 
 export function useSoundEffects(gameState: GameState | null, myPlayerId: string | null): void {
   const prevPhaseRef = useRef<string | null>(null);
@@ -23,6 +23,12 @@ export function useSoundEffects(gameState: GameState | null, myPlayerId: string 
   useEffect(() => {
     socket.on('game:building_placed', playPiecePlaced);
     return () => { socket.off('game:building_placed', playPiecePlaced); };
+  }, []);
+
+  // Victory fanfare
+  useEffect(() => {
+    socket.on('game:over', playVictoryFanfare);
+    return () => { socket.off('game:over', playVictoryFanfare); };
   }, []);
 
   // Trade proposed: play for all players except the proposer

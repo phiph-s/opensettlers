@@ -66,3 +66,20 @@ export function playTriumph(): void {
   tone(784,  0.12, 'sine', 0.22, 0.26);   // G5
   tone(1047, 0.28, 'sine', 0.28, 0.39);   // C6
 }
+
+export function playVictoryFanfare(): void {
+  // Ascending chord burst + sustained top note
+  tone(523,  0.10, 'sine', 0.18);           // C5
+  tone(659,  0.10, 'sine', 0.18, 0.10);    // E5
+  tone(784,  0.10, 'sine', 0.18, 0.20);    // G5
+  tone(1047, 0.10, 'sine', 0.22, 0.30);    // C6
+  tone(1319, 0.10, 'sine', 0.22, 0.40);    // E6
+  tone(1568, 0.45, 'sine', 0.28, 0.50);    // G6 — held
+  // Harmony underneath
+  tone(392,  0.50, 'sine', 0.12, 0.50);    // G4
+  tone(523,  0.50, 'sine', 0.12, 0.50);    // C5
+  // Final chord swell
+  tone(784,  0.60, 'sine', 0.20, 0.95);    // G5
+  tone(1047, 0.60, 'sine', 0.24, 0.95);    // C6
+  tone(1319, 0.60, 'sine', 0.20, 0.95);    // E6
+}

@@ -109,6 +109,10 @@ export function ActivityLog({ players }: Props) {
       add({ icon: '💰', text: `${getName(payload.byPlayerId)} stole from ${getName(payload.fromPlayerId)}`, color: '#b91c1c' });
     };
 
+    const onDevCardBought = (payload: { playerId: string }) => {
+      add({ icon: '🃏', text: `${getName(payload.playerId)} bought a dev card`, color: '#6b21a8' });
+    };
+
     const onDevCardPlayed = (payload: { cardType: string; playerId: string }) => {
       const label =
         payload.cardType === 'knight'         ? 'Knight' :
@@ -175,6 +179,7 @@ export function ActivityLog({ players }: Props) {
     socket.on('game:building_placed', onBuildingPlaced);
     socket.on('game:robber_moved', onRobberMoved);
     socket.on('game:stolen', onStolen);
+    socket.on('game:dev_card_bought', onDevCardBought);
     socket.on('game:dev_card_played', onDevCardPlayed);
     socket.on('game:trade_executed', onTradeExecuted);
     socket.on('game:trade_resolved', onTradeResolved);
@@ -187,6 +192,7 @@ export function ActivityLog({ players }: Props) {
       socket.off('game:building_placed', onBuildingPlaced);
       socket.off('game:robber_moved', onRobberMoved);
       socket.off('game:stolen', onStolen);
+      socket.off('game:dev_card_bought', onDevCardBought);
       socket.off('game:dev_card_played', onDevCardPlayed);
       socket.off('game:trade_executed', onTradeExecuted);
       socket.off('game:trade_resolved', onTradeResolved);
