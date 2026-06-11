@@ -493,7 +493,9 @@ export function LobbyRoomScreen() {
           flexDirection: 'column',
           padding: isMobile ? '20px 20px' : '28px 36px',
           overflowY: 'auto',
+          alignItems: 'flex-start',
         }}>
+        <div style={{ width: '100%', maxWidth: 640 }}>
           {/* Map selector */}
           <div style={{ marginBottom: 32 }}>
             <div style={{
@@ -533,7 +535,15 @@ export function LobbyRoomScreen() {
                       color: sel ? th.cardSelTitleColor : th.cardUnselTitleColor,
                       fontFamily: "'Cinzel', Georgia, serif",
                       letterSpacing: 0.5,
+                      display: 'flex', alignItems: 'center', gap: 6,
                     }}>
+                      {map.seafarers && (
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.75 }}>
+                          <path d="M1 12c2-2 4-2 7 0s5 2 7 0"/>
+                          <path d="M8 3v7"/>
+                          <path d="M8 3l-4 4h8L8 3z"/>
+                        </svg>
+                      )}
                       {(map.name.split('(')[0] ?? map.name).trim()}
                     </div>
                     <div style={{ fontSize: 11, color: sel ? th.cardSubSelColor : th.cardSubColor, marginTop: 4, fontStyle: 'italic' }}>
@@ -554,7 +564,7 @@ export function LobbyRoomScreen() {
             {/* Top row: Bank slider + VP picker side by side */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
               {/* Bank Resources */}
-              <div style={{ flex: 1, background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ flex: '0 0 260px', background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={th.settingLabel} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/>
@@ -727,6 +737,7 @@ export function LobbyRoomScreen() {
               );
             })()}
           </div>
+        </div>{/* maxWidth wrapper */}
         </div>
       </div>
 

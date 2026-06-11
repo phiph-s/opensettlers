@@ -146,6 +146,6 @@ export const WORLD_MAP: MapTemplate = {
   ],
   numberTokens: NUMBER_TOKENS,
   portTypes: PORT_TYPES,
-  playerCounts: [2, 3, 4, 5, 6, 7, 8],
+  playerCounts: [3, 4, 5, 6, 7, 8],
   seafarers: true,
 };
