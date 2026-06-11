@@ -123,7 +123,7 @@ function HexDeco({ color }: { color: string }) {
 }
 
 export function LobbyListScreen() {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => localStorage.getItem('opensettlers_username') ?? '');
   const [error, setError] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -144,6 +144,7 @@ export function LobbyListScreen() {
     if (!name.trim()) { setError('Enter your name'); return; }
     socket.emit('lobby:create', { playerName: name.trim(), settings: { maxPlayers, private: isPrivate } }, (res) => {
       if (res.ok) {
+        localStorage.setItem('opensettlers_username', name.trim());
         setPlayer(res.data.playerId, name.trim());
         setCurrentLobby(res.data.lobby);
         setLobbyId(res.data.lobby.id);
@@ -160,6 +161,7 @@ export function LobbyListScreen() {
     if (!name.trim()) { setError('Enter your name first'); return; }
     socket.emit('lobby:join', { lobbyId, playerName: name.trim() }, (res) => {
       if (res.ok) {
+        localStorage.setItem('opensettlers_username', name.trim());
         setPlayer(res.data.playerId, name.trim());
         setCurrentLobby(res.data.lobby);
         setLobbyId(res.data.lobby.id);
@@ -173,6 +175,7 @@ export function LobbyListScreen() {
     if (!name.trim()) { setError('Enter your name first'); return; }
     socket.emit('lobby:join_by_code', { code: joinCode.trim(), playerName: name.trim() }, (res) => {
       if (res.ok) {
+        localStorage.setItem('opensettlers_username', name.trim());
         setPlayer(res.data.playerId, name.trim());
         setCurrentLobby(res.data.lobby);
         setLobbyId(res.data.lobby.id);

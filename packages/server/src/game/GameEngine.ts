@@ -98,7 +98,7 @@ export class GameEngine {
     const { board, secrets } = buildBoard(mapTemplate, Math.random);
     this.hexSecrets = secrets;
 
-    const useExtraPieces = settings.extraBuildings || settings.vpToWin >= 16;
+    const useExtraPieces = settings.extraBuildings;
     const pieces = useExtraPieces ? EXTRA_PIECES_PER_PLAYER : PIECES_PER_PLAYER;
 
     let orderedPlayers = [...players];

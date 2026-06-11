@@ -547,188 +547,181 @@ export function LobbyRoomScreen() {
 
           {/* Settings */}
           <div>
-            <div style={{
-              fontSize: 10, letterSpacing: 4, color: th.accent,
-              textTransform: 'uppercase',
-              fontFamily: "'Cinzel', Georgia, serif",
-              marginBottom: 12,
-            }}>
+            <div style={{ fontSize: 10, letterSpacing: 4, color: th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif", marginBottom: 12 }}>
               Settings
             </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
-              {/* Bank Resources — slider */}
-              <div style={{
-                flex: 2,
-                background: th.settingsBg,
-                border: th.settingsBorder,
-                borderRadius: 14,
-                padding: '12px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Bank Resources
-                    <div style={{ fontSize: 10, color: th.settingNote, fontStyle: 'italic', marginTop: 1 }}>stock per type</div>
-                  </div>
-                  <div style={{
-                    fontSize: 20, fontWeight: 800, color: th.accent,
-                    fontFamily: "'Cinzel', Georgia, serif",
-                  }}>
-                    {settings.bankResourceCount}
-                  </div>
+
+            {/* Top row: Bank slider + VP picker side by side */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+              {/* Bank Resources */}
+              <div style={{ flex: 1, background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={th.settingLabel} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/>
+                  </svg>
+                  <span style={{ fontSize: 11, color: th.settingLabel, fontWeight: 600, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>Bank Resources</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, color: th.accent, fontFamily: "'Cinzel', Georgia, serif", lineHeight: 1 }}>{settings.bankResourceCount}</span>
                 </div>
-                <div>
-                  <input
-                    type="range" min={10} max={30} step={1}
-                    value={settings.bankResourceCount}
-                    disabled={!isHost}
-                    onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
-                    style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default' }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 10, marginTop: 2 }}>
-                    <span>10</span><span>19 std</span><span>30</span>
-                  </div>
+                <input
+                  type="range" min={10} max={30} step={1}
+                  value={settings.bankResourceCount}
+                  disabled={!isHost}
+                  onChange={(e) => socket.emit('lobby:settings', { lobbyId: id, settings: { bankResourceCount: Number(e.target.value) } })}
+                  style={{ width: '100%', accentColor: th.sliderAccent, cursor: isHost ? 'pointer' : 'default', height: 3 }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: th.rangeLabelColor, fontSize: 9, marginTop: 2, letterSpacing: 0.3 }}>
+                  <span>10</span><span style={{ color: th.accent }}>19 std</span><span>30</span>
                 </div>
               </div>
 
-              {/* Boolean toggles: balancedDice, friendlyRobber, randomizeOrder, extraBuildings */}
-              {([
-                ['balancedDice',   'Balanced Dice',    'Flatter bell curve'],
-                ['friendlyRobber', 'Friendly Robber',  "Can't target ≤3 VP"],
-                ['randomizeOrder', 'Random Order',     'Shuffle seat order'],
-                ['extraBuildings', 'Extra Buildings',  '+2 settlements, +2 cities, +5 roads'],
-              ] as const).map(([key, label, note]) => {
-                const on = !!(settings as unknown as Record<string, unknown>)[key];
-                const forced = key === 'extraBuildings' && settings.vpToWin >= 16;
-                const effectiveOn = on || forced;
-                return (
-                  <button
-                    key={key}
-                    disabled={!isHost || forced}
-                    onClick={() => !forced && isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { [key]: !on } })}
-                    style={{
-                      flex: 1,
-                      background: effectiveOn ? th.cardSelBg : th.settingsBg,
-                      border: `1.5px solid ${effectiveOn ? th.cardSelBorder : th.cardUnselBorder}`,
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      cursor: (!isHost || forced) ? 'default' : 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      transition: 'background 0.15s, border-color 0.15s',
-                      opacity: forced ? 0.85 : 1,
-                    }}
-                  >
-                    <div style={{ fontSize: 12, color: effectiveOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600, marginBottom: 4 }}>
-                      {label}{forced ? ' ✓' : ''}
-                    </div>
-                    <div style={{ fontSize: 10, color: effectiveOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>
-                      {forced ? 'Required at 16 VP' : note}
-                    </div>
-                  </button>
-                );
-              })}
-
-              {/* VP to Win — segmented picker */}
-              <div style={{
-                flex: 1,
-                background: th.settingsBg,
-                border: th.settingsBorder,
-                borderRadius: 14,
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: 6,
-              }}>
-                <div style={{ fontSize: 12, color: th.settingLabel, fontWeight: 600 }}>Victory Points</div>
+              {/* VP to Win */}
+              <div style={{ background: th.settingsBg, border: th.settingsBorder, borderRadius: 12, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={th.settingLabel} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z"/>
+                  </svg>
+                  <span style={{ fontSize: 11, color: th.settingLabel, fontWeight: 600, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.5 }}>Victory Points</span>
+                </div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {[8, 10, 12, 14, 16].map((v) => {
                     const sel = settings.vpToWin === v;
                     return (
-                      <button
-                        key={v}
-                        disabled={!isHost}
+                      <button key={v} disabled={!isHost}
                         onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { vpToWin: v } })}
                         style={{
-                          flex: 1,
+                          width: 30, height: 26,
                           background: sel ? th.cardSelBg : 'transparent',
                           border: `1.5px solid ${sel ? th.cardSelBorder : th.cardUnselBorder}`,
-                          borderRadius: 8,
-                          padding: '5px 0',
-                          cursor: isHost ? 'pointer' : 'default',
-                          fontSize: 12,
-                          fontWeight: 700,
+                          borderRadius: 6, cursor: isHost ? 'pointer' : 'default',
+                          fontSize: 11, fontWeight: 700,
                           color: sel ? th.cardSelTitleColor : th.settingNote,
                           fontFamily: "'Cinzel', Georgia, serif",
                           transition: 'background 0.12s, border-color 0.12s',
-                        }}
-                      >
-                        {v}
-                      </button>
+                        }}>{v}</button>
                     );
                   })}
                 </div>
               </div>
             </div>
 
-            {/* Seafarers expansion box — only shown when selected map supports sailing */}
+            {/* Toggle rows — 2-column grid */}
+            {(() => {
+              const Toggle = ({ label, note, icon, on, onClick }: { label: string; note: string; icon: React.ReactNode; on: boolean; onClick: () => void }) => (
+                <button
+                  disabled={!isHost}
+                  onClick={onClick}
+                  style={{
+                    background: on ? th.cardSelBg : th.settingsBg,
+                    border: `1.5px solid ${on ? th.cardSelBorder : th.cardUnselBorder}`,
+                    borderRadius: 10, padding: '9px 12px',
+                    cursor: isHost ? 'pointer' : 'default',
+                    textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s, border-color 0.15s',
+                    width: '100%',
+                  }}
+                >
+                  <span style={{ color: on ? th.cardSelTitleColor : th.settingNote, flexShrink: 0, display: 'flex' }}>{icon}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: on ? th.cardSelTitleColor : th.settingLabel, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.3 }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: 9, color: on ? th.cardSubSelColor : th.settingNote, marginTop: 1 }}>{note}</span>
+                  </span>
+                  {/* pill toggle */}
+                  <span style={{
+                    width: 26, height: 14, borderRadius: 7, flexShrink: 0,
+                    background: on ? th.cardSelBorder : th.cardUnselBorder,
+                    display: 'flex', alignItems: 'center',
+                    padding: '0 2px',
+                    transition: 'background 0.2s',
+                  }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: '50%', background: '#fff',
+                      marginLeft: on ? 12 : 0,
+                      transition: 'margin-left 0.18s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </span>
+                </button>
+              );
+
+              const s = settings as unknown as Record<string, unknown>;
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Toggle label="Balanced Dice" note="Flatter bell curve" on={!!s['balancedDice']}
+                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { balancedDice: !s['balancedDice'] } })}
+                    icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><circle cx="4" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>}
+                  />
+                  <Toggle label="Friendly Robber" note="Can't target ≤3 VP" on={!!s['friendlyRobber']}
+                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { friendlyRobber: !s['friendlyRobber'] } })}
+                    icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M8 1L2 3.5V8c0 3 2.5 5.5 6 6.5 3.5-1 6-3.5 6-6.5V3.5L8 1z"/><path d="M5.5 8l1.8 1.8L10.5 6.5" strokeWidth="1.6"/></svg>}
+                  />
+                  <Toggle label="Random Order" note="Shuffle seat order" on={!!s['randomizeOrder']}
+                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { randomizeOrder: !s['randomizeOrder'] } })}
+                    icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 5h10M1 11h10"/><polyline points="8,3 11,5 8,7"/><polyline points="8,9 11,11 8,13"/></svg>}
+                  />
+                  <Toggle label="Extra Buildings" note="+2 settlements · +2 cities · +5 roads" on={!!s['extraBuildings']}
+                    onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { extraBuildings: !s['extraBuildings'] } })}
+                    icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 14h14"/><path d="M3 14V8l5-5 5 5v6"/><rect x="6" y="10" width="4" height="4"/></svg>}
+                  />
+                </div>
+              );
+            })()}
+
+            {/* Seafarers expansion — only shown when map supports it */}
             {(() => {
               const supportsSeafarers = availableMaps.find((m) => m.id === settings.mapTemplateId)?.seafarers;
               if (!supportsSeafarers) return null;
               const seafOn = !!(settings as unknown as Record<string, unknown>)['seafarers'];
               const discOn = !!(settings as unknown as Record<string, unknown>)['discoveryBonus'];
+
+              const Toggle = ({ label, note, icon, on, disabled: dis, onClick }: { label: string; note: string; icon: React.ReactNode; on: boolean; disabled?: boolean; onClick: () => void }) => (
+                <button
+                  disabled={!isHost || dis}
+                  onClick={onClick}
+                  style={{
+                    background: on ? th.cardSelBg : th.settingsBg,
+                    border: `1.5px solid ${on ? th.cardSelBorder : th.cardUnselBorder}`,
+                    borderRadius: 10, padding: '9px 12px',
+                    cursor: isHost && !dis ? 'pointer' : 'default',
+                    textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s, border-color 0.15s, opacity 0.15s',
+                    width: '100%', opacity: dis ? 0.45 : 1,
+                  }}
+                >
+                  <span style={{ color: on ? th.cardSelTitleColor : th.settingNote, flexShrink: 0, display: 'flex' }}>{icon}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: on ? th.cardSelTitleColor : th.settingLabel, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: 0.3 }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: 9, color: on ? th.cardSubSelColor : th.settingNote, marginTop: 1 }}>{note}</span>
+                  </span>
+                  <span style={{
+                    width: 26, height: 14, borderRadius: 7, flexShrink: 0,
+                    background: on ? th.cardSelBorder : th.cardUnselBorder,
+                    display: 'flex', alignItems: 'center', padding: '0 2px',
+                    transition: 'background 0.2s',
+                  }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: '50%', background: '#fff',
+                      marginLeft: on ? 12 : 0,
+                      transition: 'margin-left 0.18s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </span>
+                </button>
+              );
+
               return (
-                <div style={{
-                  marginTop: 20,
-                  background: th.settingsBg,
-                  border: `1.5px solid ${th.cardUnselBorder}`,
-                  borderRadius: 14,
-                  padding: '16px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif" }}>
+                <div style={{ marginTop: 10, border: `1.5px solid ${th.cardUnselBorder}`, borderRadius: 12, padding: '12px 14px', background: th.settingsBg }}>
+                  <div style={{ fontSize: 9, letterSpacing: 3, color: th.accent, textTransform: 'uppercase', fontFamily: "'Cinzel', Georgia, serif", marginBottom: 10 }}>
                     Sailing Expansion
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      disabled={!isHost}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <Toggle label="Enable Sailing" note="Ships, pirate & sea routes" on={seafOn}
                       onClick={() => isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { seafarers: !seafOn, discoveryBonus: !seafOn ? discOn : false } })}
-                      style={{
-                        flex: 1, minWidth: 120,
-                        background: seafOn ? th.cardSelBg : th.settingsBg,
-                        border: `1.5px solid ${seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
-                        borderRadius: 10, padding: '10px 14px',
-                        cursor: isHost ? 'pointer' : 'default', textAlign: 'left',
-                        display: 'flex', flexDirection: 'column', gap: 4,
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600 }}>⛵ Enable Sailing</div>
-                      <div style={{ fontSize: 10, color: seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>Ships, pirate &amp; sea routes</div>
-                    </button>
-                    <button
-                      disabled={!isHost || !seafOn}
+                      icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12c2-2 4-2 7 0s5 2 7 0"/><path d="M8 3v7"/><path d="M8 3l-4 4h8L8 3z"/></svg>}
+                    />
+                    <Toggle label="Discovery Bonus" note="+2 VP for first island settlement" on={discOn && seafOn} disabled={!seafOn}
                       onClick={() => seafOn && isHost && socket.emit('lobby:settings', { lobbyId: id, settings: { discoveryBonus: !discOn } })}
-                      style={{
-                        flex: 1, minWidth: 120,
-                        background: discOn && seafOn ? th.cardSelBg : th.settingsBg,
-                        border: `1.5px solid ${discOn && seafOn ? th.cardSelBorder : th.cardUnselBorder}`,
-                        borderRadius: 10, padding: '10px 14px',
-                        cursor: isHost && seafOn ? 'pointer' : 'default', textAlign: 'left',
-                        display: 'flex', flexDirection: 'column', gap: 4,
-                        opacity: seafOn ? 1 : 0.45,
-                        transition: 'background 0.15s, border-color 0.15s, opacity 0.15s',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: discOn && seafOn ? th.cardSelTitleColor : th.settingLabel, fontWeight: 600 }}>🏝 Discovery Bonus</div>
-                      <div style={{ fontSize: 10, color: discOn && seafOn ? th.cardSubSelColor : th.settingNote, fontStyle: 'italic' }}>+2 VP for first island settlement</div>
-                    </button>
+                      icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="8" y1="12" x2="8" y2="14"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="12" y1="8" x2="14" y2="8"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>}
+                    />
                   </div>
                 </div>
               );
