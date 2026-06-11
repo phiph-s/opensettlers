@@ -234,6 +234,7 @@ function tryProposeTrade(state: GameState, me: Player, playerId: string, engine:
 export class BotController {
   private active = false;
   private pendingAction = false;
+  private tradeProposedThisTurn = false;
 
   constructor(
     private readonly engine: GameEngine,
@@ -334,6 +335,7 @@ export class BotController {
       case 'PRE_ROLL':
       case 'ROLL': {
         if (!isActive) return;
+        this.tradeProposedThisTurn = false;
         // Play Knight before rolling if robber is on one of our hexes
         const knightCard = me.devCards.find(
           (c) => c.type === 'knight' && c.turnDrawn < state.turnNumber
@@ -384,9 +386,19 @@ export class BotController {
         const board = state.board;
         // validRobberHexKeys already applies the friendly-robber rule
         const candidates = validRobberHexKeys(state, this.playerId);
+        // Never place on a hex adjacent to own buildings; fall back to full list only if no other option
+        const safeFromOwn = candidates.filter((hk) => {
+          const hex = board.hexes[hk];
+          if (!hex) return false;
+          return hexVertexKeys(hex.coord).every((vk) => {
+            const v = board.vertices[vk];
+            return !v?.building || v.building.owner !== this.playerId;
+          });
+        });
+        const pool = safeFromOwn.length > 0 ? safeFromOwn : candidates;
         let bestCoord: CubeCoord | null = null;
         let bestScore = -1;
-        for (const hk of candidates) {
+        for (const hk of pool) {
           const hex = board.hexes[hk];
           if (!hex) continue;
           // Score: pip-weight × opponent building value on this hex
@@ -400,9 +412,9 @@ export class BotController {
           }
           if (score > bestScore) { bestScore = score; bestCoord = hex.coord; }
         }
-        // Fallback: any valid candidate
-        if (!bestCoord && candidates.length > 0) {
-          bestCoord = board.hexes[candidates[0]!]?.coord ?? null;
+        // Fallback: any hex from the safe pool
+        if (!bestCoord && pool.length > 0) {
+          bestCoord = board.hexes[pool[0]!]?.coord ?? null;
         }
         if (bestCoord) this.engine.handleMoveRobber(this.playerId, bestCoord);
         break;
@@ -483,9 +495,12 @@ export class BotController {
           if (tryMaritimeTrade(state, me, BUILDING_COSTS.dev_card, this.engine, this.playerId)) return;
         }
 
-        // 8. Propose a 1:1 player trade when exactly 1 resource short of primary goal
-        if (state.players.length > 1) {
-          if (tryProposeTrade(state, me, this.playerId, this.engine)) return;
+        // 8. Propose a 1:1 player trade when exactly 1 resource short of primary goal (at most once per turn)
+        if (!this.tradeProposedThisTurn && state.players.length > 1) {
+          if (tryProposeTrade(state, me, this.playerId, this.engine)) {
+            this.tradeProposedThisTurn = true;
+            return;
+          }
         }
 
         // 9. Play Road Building card for free expansion
