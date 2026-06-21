@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { GameState, Player, TradeOffer } from '@opensettlers/shared';
 import { socket } from '../../socket.js';
 import { RESOURCE_IMAGES, RESOURCE_COLORS } from '../../assets/resources.js';
+import '../hud/animations.css';
 
 type Resource = 'wood' | 'brick' | 'wheat' | 'sheep' | 'ore';
 const RESOURCES: Resource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
@@ -44,6 +45,43 @@ function PeopleIcon({ size = 14 }: { size?: number }) {
       <path d="M2.5 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
       <path d="M16 5.2a3 3 0 0 1 0 5.6M21.5 20c0-2.7-1.6-4.7-4-5.3" />
     </svg>
+  );
+}
+function CheckIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+function CrossIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+function AnchorIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="3" /><line x1="12" y1="22" x2="12" y2="8" />
+      <path d="M5 12H2a10 10 0 0 0 20 0h-3" />
+    </svg>
+  );
+}
+
+const PLAYER_COLOR_HEX: Record<string, string> = {
+  red: '#e63946', blue: '#457b9d', orange: '#f4a261', black: '#5a5a5a',
+  green: '#2ecc71', purple: '#9b59b6', yellow: '#e8c730', pink: '#e91e8c',
+};
+
+function PulsingDots() {
+  return (
+    <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="trade-pulse-dot" style={{ animationDelay: `${i * 0.22}s` }} />
+      ))}
+    </span>
   );
 }
 
@@ -111,11 +149,11 @@ function TradeBuilder({ me, portRates, players }: { me: Player; portRates: Parti
 
   const hasAny = giveEntries.length > 0 || getEntries.length > 0;
   const hint = !hasAny
-    ? 'Add what you’ll give and what you want.'
+    ? "Add what you'll give and what you want."
     : !bankValid && !playerValid
     ? (giveEntries.length === 1 && getEntries.length === 1 && !someoneCanFulfill
-        ? 'No one holds that — try the bank at your port rate.'
-        : 'Match a port rate for the bank, or pick anything to offer players.')
+        ? "No one holds that — try the bank at your port rate."
+        : "Match a port rate for the bank, or pick anything to offer players.")
     : '';
 
   return (
@@ -313,68 +351,141 @@ function ActionButton({ icon, label, sublabel, tone, enabled, onClick }: {
 
 // ── Pending offer view ─────────────────────────────────────────────────────────
 function PendingOffer({ offer, me, players }: { offer: TradeOffer; me: Player; players: Player[] }) {
-  const isOfferer = offer.fromPlayerId === me.id;
-  const offerer = players.find((p) => p.id === offer.fromPlayerId);
+  const isProposer = offer.fromPlayerId === me.id;
+  const proposer = players.find((p) => p.id === offer.fromPlayerId);
   const iAccepted = offer.acceptedBy.includes(me.id);
   const iRejected = offer.rejectedBy.includes(me.id);
-  const canAfford = (Object.entries(offer.requesting) as [Resource, number][]).every(([res, amt]) => (me.hand[res] ?? 0) >= amt);
+  const canAfford = (Object.entries(offer.requesting) as [Resource, number][])
+    .every(([res, amt]) => (me.hand[res] ?? 0) >= amt);
 
   return (
     <div style={drawerStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
         <span style={{ color: '#d4a017', display: 'flex' }}><PeopleIcon size={15} /></span>
         <span style={{ fontFamily: "'Cinzel', Georgia, serif", fontWeight: 700, fontSize: 13, color: 'var(--ui-text)' }}>
-          {isOfferer ? 'Your offer is pending' : `${offerer?.name} offers a trade`}
+          {isProposer ? 'Your Trade Offer' : `${proposer?.name ?? 'Trade'} Offer`}
         </span>
         <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(212,160,23,0.5), transparent)' }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-        <Pile label={isOfferer ? 'You give' : 'They give'} resources={offer.offering} accent="#c8920a" />
+      {/* Resource piles */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <Pile label={isProposer ? 'You give' : `${proposer?.name} gives`} resources={offer.offering} accent="#c8920a" />
         <span style={{ color: 'var(--ui-text-muted)', display: 'flex' }}><ExchangeIcon size={16} /></span>
-        <Pile label={isOfferer ? 'You want' : 'They want'} resources={offer.requesting} accent="#4d86b0" />
+        <Pile label={isProposer ? 'You receive' : 'They want'} resources={offer.requesting} accent="#4d86b0" />
       </div>
 
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-        {isOfferer ? (
-          <>
-            {offer.acceptedBy.length === 0 && (
-              <span style={{ fontSize: 11.5, color: 'var(--ui-text-muted)', alignSelf: 'center' }}>Waiting for responses…</span>
-            )}
-            {offer.acceptedBy.map((pid) => {
-              const p = players.find((p2) => p2.id === pid);
-              return (
-                <button key={pid} style={{ ...solidBtn('#2a9d6a'), flex: 1 }}
-                  onClick={() => socket.emit('game:confirm_trade', { offerId: offer.id, targetPlayerId: pid })}>
-                  Trade with {p?.name}
-                </button>
-              );
-            })}
-            <button style={solidBtn('#b0413a')}
-              onClick={() => socket.emit('game:cancel_trade', { offerId: offer.id })}>
-              Cancel
-            </button>
-          </>
-        ) : iAccepted ? (
-          <span style={statusPill('#2a9d6a')}>Accepted — waiting for {offerer?.name}</span>
-        ) : iRejected ? (
-          <span style={statusPill('#b0413a')}>Rejected</span>
-        ) : (
-          <>
-            <button
-              style={{ ...solidBtn(canAfford ? '#2a9d6a' : 'var(--ui-input-bg)'), flex: 1, color: canAfford ? '#fff' : 'var(--ui-text-muted)', cursor: canAfford ? 'pointer' : 'not-allowed' }}
-              disabled={!canAfford}
-              title={canAfford ? undefined : 'You don’t have the requested resources'}
-              onClick={() => socket.emit('game:accept_trade', { offerId: offer.id })}>
-              Accept
-            </button>
-            <button style={{ ...solidBtn('#b0413a'), flex: 1 }}
-              onClick={() => socket.emit('game:reject_trade', { offerId: offer.id })}>
-              Reject
-            </button>
-          </>
-        )}
+      {/* Dotted section separator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <div style={{ flex: 1, height: 1, backgroundImage: 'repeating-linear-gradient(90deg, var(--ui-card-border) 0, var(--ui-card-border) 4px, transparent 4px, transparent 8px)' }} />
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ui-text-muted)' }}>Players</span>
+        <div style={{ flex: 1, height: 1, backgroundImage: 'repeating-linear-gradient(90deg, var(--ui-card-border) 0, var(--ui-card-border) 4px, transparent 4px, transparent 8px)' }} />
       </div>
+
+      {/* Player status roster */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 12 }}>
+        {players.map((p) => {
+          const isThisProposer = p.id === offer.fromPlayerId;
+          const accepted = offer.acceptedBy.includes(p.id);
+          const declined = offer.rejectedBy.includes(p.id);
+          const colorHex = PLAYER_COLOR_HEX[p.color] ?? '#888';
+
+          return (
+            <div key={p.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '5px 9px', borderRadius: 7,
+              background: accepted ? 'rgba(42,157,106,0.1)' : declined ? 'rgba(176,65,58,0.08)' : 'transparent',
+              border: accepted ? '1px solid rgba(42,157,106,0.25)' : declined ? '1px solid rgba(176,65,58,0.18)' : '1px solid transparent',
+              transition: 'background 0.25s, border-color 0.25s',
+            }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: colorHex, boxShadow: `0 0 6px ${colorHex}99`,
+              }} />
+              <span style={{
+                flex: 1, fontSize: 12.5,
+                fontWeight: isThisProposer ? 700 : 500,
+                color: declined ? 'var(--ui-text-muted)' : 'var(--ui-text)',
+                fontFamily: isThisProposer ? "'Cinzel', Georgia, serif" : undefined,
+                letterSpacing: isThisProposer ? '0.02em' : undefined,
+              }}>
+                {p.name}
+                {p.id === me.id && (
+                  <span style={{ fontSize: 10, color: 'var(--ui-text-muted)', marginLeft: 5, fontFamily: 'unset', fontWeight: 400 }}>(you)</span>
+                )}
+              </span>
+              {isThisProposer ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#d4a017' }}>
+                  <AnchorIcon size={10} />Offering
+                </span>
+              ) : accepted ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#2a9d6a', fontSize: 11.5, fontWeight: 700 }}>
+                  <CheckIcon size={13} />Accepted
+                </span>
+              ) : declined ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#b05050', fontSize: 11.5, fontWeight: 700 }}>
+                  <CrossIcon size={12} />Declined
+                </span>
+              ) : (
+                <PulsingDots />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Actions */}
+      {isProposer ? (
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          {offer.acceptedBy.length === 0 && (
+            <span style={{ flex: 1, fontSize: 11, color: 'var(--ui-text-muted)', fontStyle: 'italic' }}>Waiting for responses…</span>
+          )}
+          {offer.acceptedBy.map((pid) => {
+            const p = players.find((p2) => p2.id === pid);
+            return (
+              <button key={pid}
+                style={{ ...solidBtn('#2a9d6a'), flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                onClick={() => socket.emit('game:confirm_trade', { offerId: offer.id, targetPlayerId: pid })}>
+                <CheckIcon size={13} />Trade with {p?.name}
+              </button>
+            );
+          })}
+          <button
+            style={{ ...solidBtn('#6e2e2e'), display: 'flex', alignItems: 'center', gap: 5 }}
+            onClick={() => socket.emit('game:cancel_trade', { offerId: offer.id })}>
+            <CrossIcon size={12} />Cancel
+          </button>
+        </div>
+      ) : iAccepted ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 0 2px', fontSize: 12, color: '#2a9d6a', fontWeight: 700 }}>
+          <CheckIcon size={13} />Accepted — waiting for {proposer?.name}
+        </div>
+      ) : iRejected ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 0 2px', fontSize: 12, color: 'var(--ui-text-muted)', fontWeight: 600 }}>
+          <CrossIcon size={12} />You declined this offer
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 7 }}>
+          <button
+            disabled={!canAfford}
+            title={canAfford ? undefined : "You don't have the requested resources"}
+            style={{
+              ...solidBtn(canAfford ? '#2a9d6a' : 'var(--ui-input-bg)'), flex: 1,
+              color: canAfford ? '#fff' : 'var(--ui-text-muted)',
+              cursor: canAfford ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+            onClick={() => socket.emit('game:accept_trade', { offerId: offer.id })}>
+            <CheckIcon size={14} />Accept
+          </button>
+          <button
+            style={{ ...solidBtn('#b0413a'), flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            onClick={() => socket.emit('game:reject_trade', { offerId: offer.id })}>
+            <CrossIcon size={13} />Decline
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -441,7 +552,4 @@ const clearStyle: React.CSSProperties = {
 
 function solidBtn(bg: string): React.CSSProperties {
   return { background: bg, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 700 };
-}
-function statusPill(color: string): React.CSSProperties {
-  return { color, fontSize: 12, fontWeight: 700, padding: '6px 2px', flex: 1, textAlign: 'center' };
 }

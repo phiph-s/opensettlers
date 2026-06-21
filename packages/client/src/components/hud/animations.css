@@ -93,3 +93,18 @@
   flex-shrink: 0;
   animation: connectionDotPulse 1.2s ease-in-out infinite;
 }
+
+/* Trade offer — thinking indicator dots */
+@keyframes tradeDotPulse {
+  0%, 100% { opacity: 0.18; transform: scale(0.75); }
+  50%       { opacity: 1;    transform: scale(1); }
+}
+
+.trade-pulse-dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ui-text-muted);
+  animation: tradeDotPulse 1.3s ease-in-out infinite;
+}
