@@ -239,6 +239,7 @@ export class BotController {
   private active = false;
   private pendingAction = false;
   private tradeProposedThisTurn = false;
+  private actTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly engine: GameEngine,
@@ -252,6 +253,11 @@ export class BotController {
 
   stop(): void {
     this.active = false;
+    this.pendingAction = false;
+    if (this.actTimer) {
+      clearTimeout(this.actTimer);
+      this.actTimer = null;
+    }
   }
 
   onStateChange(): void {
@@ -263,7 +269,8 @@ export class BotController {
     if (!this.active) return;
     this.pendingAction = true;
     const delay = 1500 + Math.random() * 1500;
-    setTimeout(() => {
+    this.actTimer = setTimeout(() => {
+      this.actTimer = null;
       this.pendingAction = false;
       if (this.active) this.act();
     }, delay);

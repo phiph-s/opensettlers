@@ -4,12 +4,16 @@ import { Lobby } from './Lobby.js';
 import { GameEngine } from '../game/GameEngine.js';
 import type { Server as IOServer } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
+import { REAP_INTERVAL_MS, ABANDONED_LOBBY_TTL_MS } from '../config.js';
 
 type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
 
 export class LobbyManager {
   private lobbies = new Map<string, Lobby>();
   private games = new Map<string, GameEngine>();
+  /** lobbyId -> timestamp first observed with zero connected humans */
+  private abandonedSince = new Map<string, number>();
+  private reaper: ReturnType<typeof setInterval> | null = null;
 
   createLobby(socketId: string, playerId: string, playerName: string, settings?: Partial<LobbySettings>): Lobby {
     const id = uuidv4().slice(0, 8).toUpperCase();
@@ -104,6 +108,8 @@ export class LobbyManager {
   }
 
   returnToLobby(lobbyId: string, io: IO): void {
+    const game = this.games.get(lobbyId);
+    if (game) game.destroy();
     this.games.delete(lobbyId);
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby) return;
@@ -119,13 +125,26 @@ export class LobbyManager {
       if (!playerId) continue;
 
       lobby.socketToPlayer.delete(socketId);
+      // Clear the player->socket mapping only if it still points at this dead socket,
+      // so a fast reconnect (which re-sets it) is distinguishable from a real drop.
+      if (lobby.playerToSocket.get(playerId) === socketId) {
+        lobby.playerToSocket.delete(playerId);
+      }
 
       const game = this.games.get(lobby.id);
       if (game) {
         game.setPlayerConnected(playerId, false);
-        // Bot takes over — no rejoin timer, player can return any time
-        game.addBot(playerId);
         io.to(lobby.id).emit('lobby:updated', lobby.toState());
+        // Grace window before a bot takes over, so a brief network blip or transport
+        // upgrade doesn't instantly feel like a kick. Reconnecting cancels this timer.
+        lobby.startRejoinTimer(playerId, () => {
+          const g = this.games.get(lobby.id);
+          if (!g) return;
+          // Skip if the player reconnected during the grace window.
+          if (lobby.playerToSocket.get(playerId)) return;
+          g.addBot(playerId);
+          io.to(lobby.id).emit('lobby:updated', lobby.toState());
+        });
       } else {
         // In waiting lobby — remove immediately
         lobby.removePlayer(playerId);
@@ -163,14 +182,13 @@ export class LobbyManager {
     return game;
   }
 
-  handleLeaveGame(socketId: string, lobbyId: string, io: IO): string | null {
+  handleLeaveGame(playerId: string, lobbyId: string, io: IO): string | null {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby) return 'Lobby not found';
+    if (!lobby.slots.some((s) => s.playerId === playerId)) return 'Not in this lobby';
 
-    const playerId = lobby.socketToPlayer.get(socketId);
-    if (!playerId) return 'Not in this lobby';
-
-    lobby.socketToPlayer.delete(socketId);
+    const socketId = lobby.playerToSocket.get(playerId);
+    if (socketId) lobby.socketToPlayer.delete(socketId);
     lobby.playerToSocket.delete(playerId);
     lobby.permanentlyLeft.add(playerId);
 
@@ -182,5 +200,36 @@ export class LobbyManager {
 
     io.to(lobbyId).emit('lobby:updated', lobby.toState());
     return null;
+  }
+
+  /** Periodically destroy lobbies/games that have had no connected humans for a while. */
+  startReaper(io: IO): void {
+    if (this.reaper) return;
+    this.reaper = setInterval(() => this.reap(io), REAP_INTERVAL_MS);
+    if (typeof this.reaper.unref === 'function') this.reaper.unref();
+  }
+
+  private reap(_io: IO): void {
+    const now = Date.now();
+    for (const [id, lobby] of this.lobbies) {
+      // A connected human keeps a socket->player entry; bots never do.
+      if (lobby.socketToPlayer.size > 0) {
+        this.abandonedSince.delete(id);
+        continue;
+      }
+      const since = this.abandonedSince.get(id);
+      if (since === undefined) {
+        this.abandonedSince.set(id, now);
+        continue;
+      }
+      if (now - since >= ABANDONED_LOBBY_TTL_MS) {
+        const game = this.games.get(id);
+        if (game) game.destroy();
+        this.games.delete(id);
+        lobby.destroy();
+        this.lobbies.delete(id);
+        this.abandonedSince.delete(id);
+      }
+    }
   }
 }

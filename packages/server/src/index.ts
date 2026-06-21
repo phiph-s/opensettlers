@@ -2,10 +2,12 @@ import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
 import { Server as IOServer } from 'socket.io';
+import type { DefaultEventsMap } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 import { PORT, CORS_ORIGIN } from './config.js';
 import { LobbyManager } from './lobby/LobbyManager.js';
 import { registerHandlers } from './socket/registerHandlers.js';
+import type { SocketData } from './socket/registerHandlers.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -29,17 +31,20 @@ if (isProd) {
 }
 
 const httpServer = createServer(app);
-const io = new IOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+const io = new IOServer<ClientToServerEvents, ServerToClientEvents, DefaultEventsMap, SocketData>(httpServer, {
   cors: { origin: CORS_ORIGIN },
+  // Restore rooms + socket.data and replay missed packets across brief drops,
+  // so a transient network blip doesn't tear down the player's session.
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true,
+  },
 });
 
 const manager = new LobbyManager();
+manager.startReaper(io);
 
 io.on('connection', (socket) => {
-  // Each player joins a personal room matching their playerId (set after rejoin/join)
-  socket.on('game:rejoin', (payload) => {
-    void socket.join(payload.playerId);
-  });
   registerHandlers(socket, io, manager);
 });
 

@@ -7,6 +7,7 @@ import { LobbyListScreen } from './screens/LobbyListScreen.js';
 import { LobbyRoomScreen } from './screens/LobbyRoomScreen.js';
 import { GameScreen } from './screens/GameScreen.js';
 import { VictoryScreen } from './screens/VictoryScreen.js';
+import { ConnectionBanner } from './components/ConnectionBanner.js';
 
 export function App() {
   useSocket();
@@ -19,22 +20,26 @@ export function App() {
   const gameSummary = useGameStore((s) => s.gameSummary);
   const currentLobby = useLobbyStore((s) => s.currentLobby);
 
+  let screen: React.ReactNode;
   if (gameSummary) {
-    return (
+    screen = (
       <>
         {gameState && gameState.phase !== 'GAME_OVER' ? <GameScreen /> : currentLobby ? <LobbyRoomScreen /> : <LobbyListScreen />}
         <VictoryScreen />
       </>
     );
+  } else if (gameState && gameState.phase !== 'GAME_OVER') {
+    screen = <GameScreen />;
+  } else if (currentLobby) {
+    screen = <LobbyRoomScreen />;
+  } else {
+    screen = <LobbyListScreen />;
   }
 
-  if (gameState && gameState.phase !== 'GAME_OVER') {
-    return <GameScreen />;
-  }
-
-  if (currentLobby) {
-    return <LobbyRoomScreen />;
-  }
-
-  return <LobbyListScreen />;
+  return (
+    <>
+      <ConnectionBanner />
+      {screen}
+    </>
+  );
 }

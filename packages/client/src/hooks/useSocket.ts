@@ -3,6 +3,7 @@ import { socket } from '../socket.js';
 import { useGameStore } from '../store/useGameStore.js';
 import { useLobbyStore } from '../store/useLobbyStore.js';
 import { usePlayerStore } from '../store/usePlayerStore.js';
+import { useConnectionStore } from '../store/useConnectionStore.js';
 
 export function useSocket() {
   // Stable references — Zustand setters never change identity
@@ -15,23 +16,43 @@ export function useSocket() {
   useEffect(() => {
     socket.connect();
 
+    const setStatus = useConnectionStore.getState().setStatus;
+
     const clearAll = () => {
       useGameStore.getState().clearGame();
       useLobbyStore.getState().setCurrentLobby(null);
       usePlayerStore.getState().setLobbyId(null);
     };
 
-    socket.on('disconnect', clearAll);
+    // Re-establish our seat using the persisted identity. Used both on (re)connect
+    // and when the server tells us the session is gone (game:error NO_SESSION).
+    const attemptRejoin = () => {
+      const { myPlayerId, currentLobbyId } = usePlayerStore.getState();
+      if (!myPlayerId || !currentLobbyId) return;
+      socket.emit('game:rejoin', { playerId: myPlayerId, lobbyId: currentLobbyId }, (res) => {
+        if (res.ok) setGameState(res.data);
+        else clearAll(); // server restarted or game gone — go to main
+      });
+    };
+
+    // On a transient disconnect, preserve game state AND the lobby identity
+    // (myPlayerId/currentLobbyId) so we can rejoin. Wiping here previously yanked
+    // players to the home screen and discarded the lobby id needed to reconnect —
+    // the cause of "kicked out" / "can't rejoin". The server holds the seat
+    // (rejoin grace + connectionStateRecovery); a genuinely gone session is
+    // cleared by the failed-rejoin branch.
+    socket.on('disconnect', () => setStatus('reconnecting'));
 
     socket.on('connect', () => {
-      // Read current values at event time, not from stale closure
-      const { myPlayerId, currentLobbyId } = usePlayerStore.getState();
-      if (myPlayerId && currentLobbyId) {
-        socket.emit('game:rejoin', { playerId: myPlayerId, lobbyId: currentLobbyId }, (res) => {
-          if (res.ok) setGameState(res.data);
-          else clearAll(); // server restarted or game gone — go to main
-        });
-      }
+      setStatus('connected');
+      attemptRejoin();
+    });
+
+    // Safety net: if the server can't resolve our session for an action (e.g. it
+    // restarted, or our socket identity was lost), transparently re-rejoin instead
+    // of leaving the player with dead, unresponsive buttons.
+    socket.on('game:error', ({ code }) => {
+      if (code === 'NO_SESSION') attemptRejoin();
     });
 
     const onGameOver = (summary: Parameters<typeof setGameSummary>[0]) => setGameSummary(summary);
@@ -58,7 +79,8 @@ export function useSocket() {
 
     return () => {
       socket.off('connect');
-      socket.off('disconnect', clearAll);
+      socket.off('disconnect');
+      socket.off('game:error');
       socket.off('game:state', setGameState);
       socket.off('game:over', onGameOver);
       socket.off('lobby:updated');

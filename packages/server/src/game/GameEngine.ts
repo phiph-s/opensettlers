@@ -1207,5 +1207,7 @@ export class GameEngine {
 
   destroy(): void {
     this.timer.cancelAll();
+    for (const bot of this.bots.values()) bot.stop();
+    this.bots.clear();
   }
 }

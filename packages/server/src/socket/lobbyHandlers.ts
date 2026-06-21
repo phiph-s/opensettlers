@@ -1,12 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 let botCounter = 0;
-import type { Server as IOServer, Socket } from 'socket.io';
+import type { Server as IOServer, Socket, DefaultEventsMap } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 import { LobbyManager } from '../lobby/LobbyManager.js';
 import { getAvailableMaps } from '../maps/MapGenerator.js';
+import type { SocketData } from './registerHandlers.js';
 
-type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
-type S = Socket<ClientToServerEvents, ServerToClientEvents>;
+type IO = IOServer<ClientToServerEvents, ServerToClientEvents, DefaultEventsMap, SocketData>;
+type S = Socket<ClientToServerEvents, ServerToClientEvents, DefaultEventsMap, SocketData>;
 
 export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager): void {
   socket.on('lobby:list', (ack) => {
@@ -36,6 +37,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
     const lobby = manager.createLobby(socket.id, playerId, payload.playerName, payload.settings);
     void socket.join(lobby.id);
     void socket.join(playerId); // personal room for targeted events
+    socket.data.playerId = playerId;
+    socket.data.lobbyId = lobby.id;
     ack({ ok: true, data: { lobby: lobby.toState(), playerId } });
     // Broadcast only to others so they see it in the lobby list
     socket.broadcast.emit('lobby:updated', lobby.toState());
@@ -50,6 +53,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
     }
     void socket.join(payload.lobbyId);
     void socket.join(playerId); // personal room for targeted events
+    socket.data.playerId = playerId;
+    socket.data.lobbyId = payload.lobbyId;
     ack({ ok: true, data: { lobby: result.lobby.toState(), playerId } });
     io.to(payload.lobbyId).emit('lobby:updated', result.lobby.toState());
   });
@@ -76,6 +81,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
     }
     void socket.join(lobby.id);
     void socket.join(playerId);
+    socket.data.playerId = playerId;
+    socket.data.lobbyId = lobby.id;
     ack({ ok: true, data: { lobby: result.lobby.toState(), playerId } });
     io.to(lobby.id).emit('lobby:updated', result.lobby.toState());
   });
@@ -83,6 +90,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
   socket.on('lobby:leave', (payload, ack) => {
     const updated = manager.leaveLobby(socket.id, payload.lobbyId);
     void socket.leave(payload.lobbyId);
+    socket.data.playerId = undefined;
+    socket.data.lobbyId = undefined;
     ack({ ok: true, data: undefined });
     if (updated) io.to(payload.lobbyId).emit('lobby:updated', updated.toState());
   });
@@ -169,6 +178,8 @@ export function registerLobbyHandlers(socket: S, io: IO, manager: LobbyManager):
     }
     void socket.join(payload.playerId);
     void socket.join(payload.lobbyId);
+    socket.data.playerId = payload.playerId;
+    socket.data.lobbyId = payload.lobbyId;
     ack({ ok: true, data: result.sanitizeFor(payload.playerId) });
   });
 }

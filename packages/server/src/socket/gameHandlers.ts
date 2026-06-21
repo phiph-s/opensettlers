@@ -1,23 +1,42 @@
-import type { Server as IOServer, Socket } from 'socket.io';
+import type { Server as IOServer, Socket, DefaultEventsMap } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@opensettlers/shared';
 import { LobbyManager } from '../lobby/LobbyManager.js';
 import { GameEngine } from '../game/GameEngine.js';
+import type { SocketData } from './registerHandlers.js';
 
-type IO = IOServer<ClientToServerEvents, ServerToClientEvents>;
-type S = Socket<ClientToServerEvents, ServerToClientEvents>;
+type IO = IOServer<ClientToServerEvents, ServerToClientEvents, DefaultEventsMap, SocketData>;
+type S = Socket<ClientToServerEvents, ServerToClientEvents, DefaultEventsMap, SocketData>;
 
-function getGame(socket: S, manager: LobbyManager): GameEngine | null {
-  const lobby = Array.from(socket.rooms).find((r) => manager.getLobby(r));
-  if (!lobby) return null;
-  return manager.getGame(lobby) ?? null;
+/**
+ * Resolve (lobbyId, playerId) for this socket. Prefers the authoritative identity
+ * stamped on socket.data at join/rejoin; falls back to deriving it from joined rooms
+ * for resilience. Returns null only when this socket genuinely has no session.
+ */
+function resolveIdentity(socket: S, manager: LobbyManager): { lobbyId: string; playerId: string } | null {
+  let lobbyId = socket.data.lobbyId;
+  let playerId = socket.data.playerId;
+  if (!lobbyId || !playerId) {
+    for (const room of socket.rooms) {
+      const lobby = manager.getLobby(room);
+      if (lobby) {
+        lobbyId = lobby.id;
+        playerId = lobby.socketToPlayer.get(socket.id) ?? playerId;
+        break;
+      }
+    }
+  }
+  if (!lobbyId || !playerId) return null;
+  return { lobbyId, playerId };
 }
 
-function getPlayerId(socket: S, manager: LobbyManager): string | null {
-  for (const room of socket.rooms) {
-    const lobby = manager.getLobby(room);
-    if (lobby) return lobby.socketToPlayer.get(socket.id) ?? null;
-  }
-  return null;
+function getContext(socket: S, manager: LobbyManager): { engine: GameEngine; playerId: string } | null {
+  const id = resolveIdentity(socket, manager);
+  if (!id) return null;
+  const engine = manager.getGame(id.lobbyId);
+  if (!engine) return null;
+  // Confirm this player actually belongs to the game before acting on their behalf.
+  if (!engine.getState().players.some((p) => p.id === id.playerId)) return null;
+  return { engine, playerId: id.playerId };
 }
 
 function handle(
@@ -25,10 +44,14 @@ function handle(
   manager: LobbyManager,
   fn: (engine: GameEngine, playerId: string) => string | null
 ): void {
-  const engine = getGame(socket, manager);
-  const playerId = getPlayerId(socket, manager);
-  if (!engine || !playerId) return;
-  const err = fn(engine, playerId);
+  const ctx = getContext(socket, manager);
+  if (!ctx) {
+    // Don't fail silently — tell the client its session is gone so it can re-rejoin
+    // instead of presenting dead, unresponsive buttons.
+    socket.emit('game:error', { code: 'NO_SESSION', message: 'Lost your game session — reconnecting…' });
+    return;
+  }
+  const err = fn(ctx.engine, ctx.playerId);
   if (err) socket.emit('game:error', { code: 'ACTION_FAILED', message: err });
 }
 
@@ -142,22 +165,24 @@ export function registerGameHandlers(socket: S, io: IO, manager: LobbyManager): 
   });
 
   socket.on('game:leave', ({ lobbyId }, ack) => {
-    const lobby = manager.getLobby(lobbyId);
-    const playerId = lobby?.socketToPlayer.get(socket.id);
-    const err = manager.handleLeaveGame(socket.id, lobbyId, io);
+    // Resolve the player from authoritative socket.data, falling back to the live mapping.
+    const playerId = socket.data.playerId ?? manager.getLobby(lobbyId)?.socketToPlayer.get(socket.id);
+    if (!playerId) { ack({ ok: false, code: 'LEAVE_FAILED', message: 'Not in this game' }); return; }
+    const err = manager.handleLeaveGame(playerId, lobbyId, io);
     if (err) { ack({ ok: false, code: 'LEAVE_FAILED', message: err }); return; }
     // Remove from all rooms first so no further game:state events reach this socket
     void socket.leave(lobbyId);
-    if (playerId) void socket.leave(playerId);
+    void socket.leave(playerId);
+    socket.data.playerId = undefined;
+    socket.data.lobbyId = undefined;
     ack({ ok: true, data: undefined });
   });
 
   socket.on('game:ready_for_next', () => {
-    const engine = getGame(socket, manager);
-    const playerId = getPlayerId(socket, manager);
-    if (!engine || !playerId) return;
-    engine.handleReadyForNext(playerId, () => {
-      const lobbyId = Array.from(socket.rooms).find((r) => manager.getLobby(r));
+    const ctx = getContext(socket, manager);
+    if (!ctx) return;
+    const lobbyId = resolveIdentity(socket, manager)?.lobbyId;
+    ctx.engine.handleReadyForNext(ctx.playerId, () => {
       if (lobbyId) manager.returnToLobby(lobbyId, io);
     });
   });

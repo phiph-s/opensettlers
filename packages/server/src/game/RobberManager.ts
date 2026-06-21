@@ -27,7 +27,11 @@ export function computeRobberCandidates(state: GameState, hexCoord: CubeCoord): 
     const ownerId = vertex.building.owner;
     if (ownerId === activeId) continue;
     const owner = state.players.find((p) => p.id === ownerId);
-    if (owner && handTotal(owner) > 0) candidates.add(ownerId);
+    if (!owner || handTotal(owner) <= 0) continue;
+    // Friendly robber: players with ≤ 3 VP are protected and can't be stolen from,
+    // even when they share a hex with a targetable (> 3 VP) player.
+    if (state.friendlyRobber && owner.victoryPoints <= 3) continue;
+    candidates.add(ownerId);
   }
 
   return Array.from(candidates);

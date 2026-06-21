@@ -78,3 +78,18 @@
   animation: pieceHighlightPulse 1.1s ease-in-out infinite;
   pointer-events: none;
 }
+
+/* Connection banner — pulsing status dot */
+@keyframes connectionDotPulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(232,199,48,0.55); }
+  50%      { opacity: 0.5; box-shadow: 0 0 0 5px rgba(232,199,48,0); }
+}
+
+.connection-banner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e8c730;
+  flex-shrink: 0;
+  animation: connectionDotPulse 1.2s ease-in-out infinite;
+}
