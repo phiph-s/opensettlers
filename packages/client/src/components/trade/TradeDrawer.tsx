@@ -119,48 +119,50 @@ function TradeBuilder({ me, portRates, players }: { me: Player; portRates: Parti
     : '';
 
   return (
-    <div style={drawerStyle}>
-      <Header />
+    // Bottom-aligned row: hint stacks above the card (left), actions sit alongside
+    // (right). The trade card itself keeps a constant height so the trays never jump.
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {hint && <div style={hintCardStyle}>{hint}</div>}
+        <div style={drawerStyle}>
+          <Header />
+          <Tray
+            title="You give"
+            tint="give"
+            basket={give}
+            owned={me.hand}
+            rateOf={rateOf}
+            onAdjust={(res, d) => adjust('give', res, d)}
+          />
+          <Divider />
+          <Tray
+            title="You receive"
+            tint="get"
+            basket={get}
+            onAdjust={(res, d) => adjust('get', res, d)}
+          />
+        </div>
+      </div>
 
-      <Tray
-        title="You give"
-        tint="give"
-        basket={give}
-        owned={me.hand}
-        rateOf={rateOf}
-        onAdjust={(res, d) => adjust('give', res, d)}
-      />
-
-      <Divider />
-
-      <Tray
-        title="You receive"
-        tint="get"
-        basket={get}
-        onAdjust={(res, d) => adjust('get', res, d)}
-      />
-
-      {hint && <div style={hintStyle}>{hint}</div>}
-
-      <div style={{ display: 'flex', gap: 7, marginTop: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 7, width: 122 }}>
+        {hasAny && <button onClick={reset} style={clearStyle}>Clear</button>}
         <ActionButton
-          icon={<BankIcon />}
-          label={bankGive && bankValid ? `Bank · ${bankRate}:1` : 'Bank'}
+          icon={<BankIcon size={18} />}
+          label="Bank"
+          sublabel={bankValid ? `${bankRate}:1` : 'port rate'}
           tone="bank"
           enabled={bankValid}
           onClick={doBank}
         />
         <ActionButton
-          icon={<PeopleIcon />}
-          label="Offer to players"
+          icon={<PeopleIcon size={18} />}
+          label="Offer"
+          sublabel="to players"
           tone="players"
           enabled={playerValid}
           onClick={doOffer}
         />
       </div>
-      {hasAny && (
-        <button onClick={reset} style={clearStyle}>Clear</button>
-      )}
     </div>
   );
 }
@@ -281,8 +283,8 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
   );
 }
 
-function ActionButton({ icon, label, tone, enabled, onClick }: {
-  icon: React.ReactNode; label: string; tone: 'bank' | 'players'; enabled: boolean; onClick: () => void;
+function ActionButton({ icon, label, sublabel, tone, enabled, onClick }: {
+  icon: React.ReactNode; label: string; sublabel?: string; tone: 'bank' | 'players'; enabled: boolean; onClick: () => void;
 }) {
   const bg = tone === 'bank' ? '#2f6f9e' : '#2a9d6a';
   return (
@@ -290,12 +292,11 @@ function ActionButton({ icon, label, tone, enabled, onClick }: {
       onClick={onClick}
       disabled={!enabled}
       style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        padding: '8px 6px', borderRadius: 8, border: 'none',
+        width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+        padding: '11px 8px', borderRadius: 10, border: 'none',
         background: enabled ? bg : 'var(--ui-input-bg)',
         color: enabled ? '#fff' : 'var(--ui-text-muted)',
         cursor: enabled ? 'pointer' : 'default',
-        fontSize: 12, fontWeight: 700, letterSpacing: '0.01em',
         boxShadow: enabled ? `0 3px 12px ${bg}66` : 'none',
         transition: 'background 0.15s, box-shadow 0.15s, transform 0.1s',
       }}
@@ -304,7 +305,8 @@ function ActionButton({ icon, label, tone, enabled, onClick }: {
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
     >
       <span style={{ display: 'flex' }}>{icon}</span>
-      {label}
+      <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.02em' }}>{label}</span>
+      {sublabel && <span style={{ fontSize: 9.5, fontWeight: 600, opacity: 0.85 }}>{sublabel}</span>}
     </button>
   );
 }
@@ -417,12 +419,23 @@ const drawerStyle: React.CSSProperties = {
   color: 'var(--ui-text)',
 };
 
-const hintStyle: React.CSSProperties = {
-  fontSize: 11, color: 'var(--ui-text-muted)', marginTop: 9, textAlign: 'center', fontStyle: 'italic',
+// Hint lives in its own card stacked above the trade card so toggling it never
+// changes the trade card's height. Matches the card's total width (332 + 14×2 padding).
+const hintCardStyle: React.CSSProperties = {
+  width: 332,
+  background: 'var(--ui-card-bg)',
+  border: '1px solid var(--ui-card-border)',
+  borderRadius: 10,
+  padding: '8px 14px',
+  fontSize: 11.5,
+  color: 'var(--ui-text-muted)',
+  fontStyle: 'italic',
+  textAlign: 'center',
+  boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
 };
 
 const clearStyle: React.CSSProperties = {
-  width: '100%', marginTop: 6, padding: '3px', background: 'none', border: 'none',
+  width: '100%', padding: '4px', background: 'none', border: 'none',
   color: 'var(--ui-text-muted)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline',
 };
 

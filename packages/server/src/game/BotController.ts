@@ -10,6 +10,7 @@ import {
 } from '@opensettlers/shared';
 import type { CubeCoord, GameState, Resource, Player, TradeOffer } from '@opensettlers/shared';
 import type { GameEngine } from './GameEngine.js';
+import { getBestMaritimeRate } from './TradeManager.js';
 
 const RESOURCES: Resource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
 
@@ -94,7 +95,7 @@ function robberOnOwnHex(state: GameState, playerId: string): boolean {
 }
 
 
-/** Try a 4:1 maritime trade to get one resource we need toward a goal. */
+/** Try a port-aware maritime trade to get one resource we need toward a goal. */
 function tryMaritimeTrade(
   state: GameState,
   me: Player,
@@ -102,22 +103,34 @@ function tryMaritimeTrade(
   engine: GameEngine,
   playerId: string
 ): boolean {
-  // Find what we need
+  // What we're still short of
   const missing = (Object.entries(needed) as [Resource, number][]).filter(
     ([r, n]) => (me.hand[r] ?? 0) < n
   );
   if (missing.length === 0) return false;
+  const targetRes = missing[0]![0];
 
-  // Find what we have 4+ of
-  const surplus = (RESOURCES.filter((r) => (me.hand[r] ?? 0) >= 4)) as Resource[];
-  if (surplus.length === 0) return false;
+  // Pick the best resource to give away: tradeable at our actual port rate, with a
+  // genuine surplus beyond what the goal still needs. Prefer the biggest surplus,
+  // breaking ties toward the cheapest rate (so 2:1 / 3:1 ports get used).
+  let bestGive: Resource | null = null;
+  let bestRate = 4;
+  let bestExcess = -1;
+  for (const r of RESOURCES) {
+    if (r === targetRes) continue;
+    const rate = getBestMaritimeRate(me, state.board, r);
+    const goalNeed = (needed as Partial<Record<Resource, number>>)[r] ?? 0;
+    const excess = (me.hand[r] ?? 0) - goalNeed; // resources beyond the goal's own requirement
+    if (excess < rate) continue;                 // can't give a full lot without starving the goal
+    if (excess > bestExcess || (excess === bestExcess && rate < bestRate)) {
+      bestGive = r;
+      bestRate = rate;
+      bestExcess = excess;
+    }
+  }
+  if (!bestGive) return false;
 
-  // Trade surplus for first missing resource
-  const [targetRes] = missing[0]!;
-  const giveRes = surplus[0]!;
-  if (giveRes === targetRes) return false;
-
-  const err = engine.handleMaritimeTrade(playerId, { [giveRes]: 4 }, { [targetRes]: 1 });
+  const err = engine.handleMaritimeTrade(playerId, { [bestGive]: bestRate }, { [targetRes]: 1 });
   return err === null;
 }
 
@@ -207,27 +220,24 @@ function shouldAcceptTrade(state: GameState, me: Player, offer: TradeOffer, play
   return goalDeficit(goal, postHand) < goalDeficit(goal, me.hand);
 }
 
-/** Propose a 1:1 player trade when exactly 1 resource short of primary goal and has surplus of another. */
+/** Propose a 1:1 player trade for a resource we're short of, giving a genuine surplus. */
 function tryProposeTrade(state: GameState, me: Player, playerId: string, engine: GameEngine): boolean {
   const goal = primaryGoalCost(state, me, playerId);
   if (!goal) return false;
 
-  const stillNeed = (Object.entries(goal) as [Resource, number][])
+  // Resources we're short of for the goal, that at least one opponent actually holds.
+  const wantRes = (Object.entries(goal) as [Resource, number][])
     .filter(([r, n]) => (me.hand[r] ?? 0) < n)
-    .map(([r, n]) => [r, n - (me.hand[r] ?? 0)] as [Resource, number]);
+    .map(([r]) => r as Resource)
+    .find((r) => state.players.some((p) => p.id !== playerId && (p.hand[r] ?? 0) > 0));
+  if (!wantRes) return false;
 
-  if (stillNeed.length !== 1 || stillNeed[0]![1] !== 1) return false;
-  const [wantRes] = stillNeed[0]!;
-
-  // Don't request a resource nobody else has
-  const anyoneHas = state.players.some((p) => p.id !== playerId && (p.hand[wantRes] ?? 0) > 0);
-  if (!anyoneHas) return false;
-
+  // Offer a resource we hold beyond the goal's need (keeping a 1-card buffer).
   for (const r of RESOURCES) {
     if (r === wantRes) continue;
     const have = me.hand[r] ?? 0;
     const goalNeed = (goal as Partial<Record<Resource, number>>)[r] ?? 0;
-    if (have > goalNeed + 1) {
+    if (have - 1 > goalNeed) {
       const err = engine.handleProposeTrade(playerId, { [r]: 1 }, { [wantRes]: 1 });
       if (err === null) return true;
     }
