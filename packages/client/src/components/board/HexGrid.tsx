@@ -9,7 +9,6 @@ import { VertexSpot } from './VertexSpot.js';
 import { EdgeSpot } from './EdgeSpot.js';
 import { RobberSpot } from './RobberSpot.js';
 import { PortMarker } from './PortMarker.js';
-import { TerrainPatterns } from './TerrainPatterns.js';
 import { socket } from '../../socket.js';
 import { useHoverStore } from '../../store/useHoverStore.js';
 
@@ -232,7 +231,6 @@ export function HexGrid({ gameState, myPlayerId, validMoves, buildMode, onBuildM
       style={{ width: '100%', height: '100%' }}
     >
       <defs>
-        <TerrainPatterns />
         {/* Hex tile shadow: outer drop shadow behind each tile */}
         <filter id="hex-tile-fx" x="-25%" y="-25%" width="150%" height="150%">
           <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.55" result="shadow" />

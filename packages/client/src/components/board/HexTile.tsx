@@ -3,6 +3,14 @@ import { hexPolygonPoints } from '@opensettlers/shared';
 import type { Hex, TerrainType } from '@opensettlers/shared';
 import type { Point } from '@opensettlers/shared';
 import '../hud/animations.css';
+import bgForest from '../../assets/bg_wood.png';
+import bgHills from '../../assets/bg_brick.png';
+import bgFields from '../../assets/bg_wheat.png';
+import bgPasture from '../../assets/bg_sheep.png';
+import bgMountains from '../../assets/bg_ore.png';
+import bgDesert from '../../assets/bg_desert.png';
+import bgClouds from '../../assets/bg_clouds.png';
+import bgGold from '../../assets/bg_gold.png';
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
   forest: '#2d6a27',
@@ -16,15 +24,15 @@ const TERRAIN_COLORS: Record<TerrainType, string> = {
   gold: '#b8860b',
 };
 
-const TERRAIN_PATTERN: Partial<Record<TerrainType, string>> = {
-  forest: 'url(#pat-forest)',
-  hills: 'url(#pat-hills)',
-  fields: 'url(#pat-fields)',
-  pasture: 'url(#pat-pasture)',
-  mountains: 'url(#pat-mountains)',
-  desert: 'url(#pat-desert)',
-  clouds: 'url(#pat-clouds)',
-  gold: 'url(#pat-gold)',
+const TERRAIN_IMAGE: Partial<Record<TerrainType, string>> = {
+  forest: bgForest,
+  hills: bgHills,
+  fields: bgFields,
+  pasture: bgPasture,
+  mountains: bgMountains,
+  desert: bgDesert,
+  clouds: bgClouds,
+  gold: bgGold,
 };
 
 interface Props {
@@ -39,15 +47,33 @@ export function HexTile({ hex, center, size, rolledNumber, uiScale = 1 }: Props)
   const points = hexPolygonPoints(center, size * 0.92);
   const innerPoints = hexPolygonPoints(center, size * 0.88);
   const color = TERRAIN_COLORS[hex.terrain];
-  const pattern = TERRAIN_PATTERN[hex.terrain];
+  const image = TERRAIN_IMAGE[hex.terrain];
   const isRolled = rolledNumber != null && hex.numberToken === rolledNumber;
   const { x, y } = center;
+  const clipId = `hex-clip-${hex.coord.q}-${hex.coord.r}`;
 
   return (
     <>
+      {image && (
+        <defs>
+          <clipPath id={clipId}>
+            <polygon points={points} />
+          </clipPath>
+        </defs>
+      )}
       <g filter="url(#hex-tile-fx)">
         <polygon points={points} fill={color} stroke="none" />
-        {pattern && <polygon points={points} fill={pattern} stroke="none" />}
+        {image && (
+          <image
+            href={image}
+            x={center.x - size}
+            y={center.y - size}
+            width={size * 2}
+            height={size * 2}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#${clipId})`}
+          />
+        )}
         {/* Inset dark edge */}
         <polygon points={innerPoints} fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth={5} />
         {/* Dice-roll flash overlay */}
