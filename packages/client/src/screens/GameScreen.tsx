@@ -28,7 +28,7 @@ import { socket } from '../socket.js';
 export function GameScreen() {
   const gameState = useGameStore((s) => s.gameState);
   const clearGame = useGameStore((s) => s.clearGame);
-  const { myPlayerId } = usePlayerStore();
+  const { myPlayerId, currentLobbyId } = usePlayerStore();
   const currentLobby = useLobbyStore((s) => s.currentLobby);
   const setCurrentLobby = useLobbyStore((s) => s.setCurrentLobby);
   const validMoves = useValidMoves(gameState, myPlayerId);
@@ -58,15 +58,15 @@ export function GameScreen() {
   const totalSeconds = 60; // rough fallback; could derive from settings
 
   const onLeave = () => {
-    if (currentLobby) {
-      socket.emit('game:leave', { lobbyId: currentLobby.id }, (res) => {
-        if (res.ok) {
-          clearGame();
-          setCurrentLobby(null);
-          usePlayerStore.getState().setLobbyId(null);
-        }
-      });
-    }
+    const lobbyId = currentLobby?.id ?? currentLobbyId;
+    if (!lobbyId) return;
+    socket.emit('game:leave', { lobbyId }, (res) => {
+      if (res.ok) {
+        clearGame();
+        setCurrentLobby(null);
+        usePlayerStore.getState().setLobbyId(null);
+      }
+    });
   };
 
   const sidePanel = (
